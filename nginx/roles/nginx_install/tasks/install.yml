@@ -1,0 +1,28 @@
+#编译nginx
+- name: 编译nginx
+  shell: "cd {{ SOURCE_DIR }}/nginx-{{ NGINX_VER }} && ./configure --prefix={{ NGINX_DIR }} --user={{ NGINX_USER }} --group={{ NGINX_USER }} --http-log-path={{ DATA_DIR }}/log/access.log --error-log-path={{ DATA_DIR }}/log/error.log --with-http_ssl_module --with-http_realip_module --with-http_flv_module --with-http_mp4_module --with-http_gunzip_module --with-http_gzip_static_module --with-http_image_filter_module --with-http_stub_status_module"
+
+#安装nginx
+- name: 安装nginx
+  shell: "cd {{ SOURCE_DIR }}/nginx-{{ NGINX_VER }} && make && make install"
+
+#复制nginx主配置文件
+- name: 拷贝nginx主配置文件
+  template: src=nginx.conf dest={{ NGINX_DIR }}/conf/nginx.conf owner={{ NGINX_USER }} group={{ NGINX_USER }}
+
+- name: 创建vhost配置文件目录
+  file: name={{ NGINX_DIR }}/conf/vhost state=directory owner={{ NGINX_USER }} group={{ NGINX_USER }} mode=0755 recurse=yes
+
+#复制nginx vhost配置文件
+- name: 拷贝nginx vhost配置文件
+  template: src=server.conf dest={{ NGINX_DIR }}/conf/vhost/server.conf owner={{ NGINX_USER }} group={{ NGINX_USER }} mode=0644
+
+#复制nginx额外配置文件
+- name: 拷贝nginx额外配置文件
+  template: src=fastcgi_params dest={{ NGINX_DIR }}/conf/fastcgi_params owner={{ NGINX_USER }} group={{ NGINX_USER }} mode=0644
+
+- name: 配置环境变量
+  shell: " if [ `grep {{ NGINX_DIR }}/sbin /etc/profile |wc -l` -eq 0 ]; then echo export PATH=$PATH:{{ NGINX_DIR }}/sbin >> /etc/profile && source /etc/profile; else source /etc/profile; fi"
+
+- name: 启动nginx并开机启动
+  shell: "systemctl daemon-reload && systemctl enable nginx && systemctl start nginx"

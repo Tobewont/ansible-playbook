@@ -1,0 +1,7 @@
+#用于批量安装Nginx
+- hosts: test
+  remote_user: root
+  gather_facts: True
+
+  roles:
+    - nginx_install
