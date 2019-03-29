@@ -9,7 +9,7 @@ WantedBy=multi-user.target
 [Service]
 User=mysql
 Group=mysql
-ExecStart={{ base_dir }}/bin/mysqld --defaults-file=/etc/my.cnf
+ExecStart={{ BASE_DIR }}/bin/mysqld --defaults-file=/etc/my.cnf
 
 #连接数限制
 LimitNOFILE=65535
