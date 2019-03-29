@@ -1,0 +1,8 @@
+#定义mysql安装中的变量
+download_url: https://mirrors.tuna.tsinghua.edu.cn/mysql/downloads/MySQL-5.7/mysql-5.7.25-linux-glibc2.12-x86_64.tar.gz
+mysql_version: mysql-5.7.25
+mysql_user: mysql
+mysql_port: 3306
+source_dir: /software
+base_dir: /usr/local/mysql
+data_dir: /data/mysql

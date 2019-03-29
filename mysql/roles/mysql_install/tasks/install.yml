@@ -1,0 +1,32 @@
+#初始化安装mysql
+- name: mysql初始化
+  shell: "{{ base_dir }}/bin/mysqld --initialize-insecure --user={{ mysql_user }} --basedir={{ base_dir }}  --datadir={{ data_dir }}"
+
+- name: 拷贝启动脚本到/etc下
+  copy: src={{ base_dir }}/support-files/mysql.server dest=/etc/init.d/mysql
+
+- name: 修改启动脚本_1
+  lineinfile:
+    dest: /etc/init.d/mysql
+    regexp: "^basedir="
+    insertbefore: "^# Default value, in seconds, afterwhich the script should timeout waiting"
+    line: "basedir={{ base_dir }}"
+
+- name: 修改启动脚本_2
+  lineinfile:
+    dest: /etc/init.d/mysql
+    regexp: "^datadir="
+    insertbefore: "^# Default value, in seconds, afterwhich the script should timeout waiting"
+    line: "datadir={{ data_dir }}"
+
+- name: 修改启动脚本_3
+  file: dest=/etc/init.d/mysql state=file mode=0755
+
+- name: 配置环境变量
+  shell: " if [ `grep {{ base_dir }}/bin /etc/profile |wc -l` -eq 0 ]; then echo export PATH=$PATH:{{ base_dir }}/bin >> /etc/profile && source /etc/profile; else source /etc/profile; fi"
+
+- name: 启动mysql并开机启动
+  shell: "systemctl daemon-reload && systemctl enable mysqld && systemctl start mysqld"
+
+- name: 设置数据库root密码
+  shell: "bash {{ source_dir }}/change_passwd.sh && source /etc/profile" 
