@@ -1,4 +1,5 @@
 #用于批量安装MySQL
+---
 - hosts: test
   remote_user: root
   gather_facts: True
