@@ -14,12 +14,12 @@
   file: name={{ data_dir }} owner={{ mysql_user }} group={{ mysql_user }}
 
 #当前主机下没有mysql包
-#- name: 下载mysql包
-#  get_url: url={{ download_url }} dest={{ source_dir }} owner={{ mysql_user }} group={{ mysql_user }} 
+- name: 下载mysql包
+  get_url: url={{ download_url }} dest={{ source_dir }} owner={{ mysql_user }} group={{ mysql_user }} 
 
 #当前主机file目录下已有mysql包
-- name: 拷贝现有mysql包到所有主机
-  copy: src={{ mysql_version }}-linux-glibc2.12-x86_64.tar.gz dest={{ source_dir }} owner={{ mysql_user }} group={{ mysql_user }}
+#- name: 拷贝现有mysql包到所有主机
+#  copy: src={{ mysql_version }}-linux-glibc2.12-x86_64.tar.gz dest={{ source_dir }} owner={{ mysql_user }} group={{ mysql_user }}
 
 
 - name: 解压mysql包
