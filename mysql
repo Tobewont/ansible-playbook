@@ -1,0 +1,21 @@
+mysql/
+├── mysql.yml
+└── roles
+    └── mysql_install
+        ├── files
+        │   └── mysql-5.7.25-linux-glibc2.12-x86_64.tar.gz
+        ├── handlers
+        ├── meta
+        ├── tasks
+        │   ├── copy.yml
+        │   ├── install.yml
+        │   ├── main.yaml
+        │   └── prepare.yml
+        ├── templates
+        │   ├── change_passwd.sh
+        │   ├── my.cnf
+        │   └── mysqld.service
+        └── vars
+            └── main.yml
+
+8 directories, 10 files
