@@ -29,4 +29,4 @@
   shell: "systemctl daemon-reload && systemctl enable mysqld && systemctl start mysqld"
 
 - name: 设置数据库root密码
-  shell: "bash {{ source_dir }}/change_passwd.sh && source /etc/profile" 
+  shell: "bash {{ source_dir }}/change_passwd.sh" 
