@@ -1,5 +1,5 @@
 #用于批量安装PHP
-- hosts: test
+- hosts: webserver
   remote_user: root
   gather_facts: True
 
