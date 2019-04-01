@@ -1,0 +1,7 @@
+#用于批量安装PHP
+- hosts: test
+  remote_user: root
+  gather_facts: True
+
+  roles:
+    - php_install

@@ -1,0 +1,58 @@
+- name: 关闭firewalld
+  service: name=firewalld state=stopped enabled=no
+
+- name: 临时关闭 selinux
+  shell: "setenforce 0"
+  failed_when: false
+
+- name: 永久关闭 selinux
+  lineinfile:
+    dest: /etc/selinux/config
+    regexp: "^SELINUX="
+    line: "SELINUX=disabled"
+
+- name: 添加EPEL仓库
+  yum: name=epel-release state=latest
+
+- name: 安装常用软件包
+  yum:
+    name:
+      - vim
+      - lrzsz
+      - net-tools
+      - wget
+      - curl
+      - bash-completion
+      - rsync
+      - gcc
+      - gcc-c++
+      - unzip
+      - git
+      - autoconf
+      - cmake
+      - openssl
+      - openssl-devel
+      - pcre 
+      - pcre-devel 
+      - zlib
+      - zlib-devel
+      - gd-devel
+      - libxml2-devel
+      - bzip2-devel
+      - gnutls-devel
+      - ncurses-devel 
+      - bison
+      - bison-devel
+      - openldap  
+      - openldap-devel
+      - libcurl-devel 
+      - libevent 
+      - libevent-devel 
+      - expat-devel
+      - numactl
+    state: latest
+
+- name: 更新系统
+  shell: "yum update -y"
+  args:
+    warn: False

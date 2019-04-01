@@ -1,0 +1,33 @@
+- name: 创建php用户组
+  group: name={{ PHP_USER }}  state=present
+
+- name: 创建php用户
+  user: name={{ PHP_USER }}  group={{ PHP_USER }}  state=present create_home=False shell=/sbin/nologin
+
+- name: 创建software目录
+  file: name={{ SOURCE_DIR }} state=directory mode=0755 recurse=yes
+
+#当前主机下没有libmcrypt依赖包
+- name: 下载依赖包libmcrypt
+  get_url: url=http://nchc.dl.sourceforge.net/project/mcrypt/Libmcrypt/2.5.8/libmcrypt-2.5.8.tar.gz dest={{ SOURCE_DIR }}
+
+#当前主机file目录下已有libmcrypt依赖包
+#- name: 拷贝现有libmcrypt依赖包到所有主机
+#  copy: src=libmcrypt-2.5.8.tar.gz dest={{ SOURCE_DIR }}
+
+#当前主机下没有php包
+- name: 下载php包
+  get_url: url={{ DOWNLOAD_URL }} dest={{ SOURCE_DIR }} owner={{ PHP_USER }} group={{ PHP_USER }}
+
+#当前主机file目录下已有php包
+#- name: 拷贝现有php包到所有主机
+#  copy: src=php-{{ PHP_VER }}.tar.gz dest={{ SOURCE_DIR }} owner={{ PHP_USER }} group={{ PHP_USER }}
+
+- name: 解压依赖包libmcrypt
+  unarchive: src={{ SOURCE_DIR }}/libmcrypt-2.5.8.tar.gz dest={{ SOURCE_DIR }}
+
+- name: 编译安装libmcrypt
+  shell: "cd {{ SOURCE_DIR }}/libmcrypt-2.5.8 && ./configure && make && make install"
+
+- name: 解压php包
+  unarchive: src={{ SOURCE_DIR }}/php-{{ PHP_VER }}.tar.gz dest={{ SOURCE_DIR }} owner={{ PHP_USER }} group={{ PHP_USER }}
