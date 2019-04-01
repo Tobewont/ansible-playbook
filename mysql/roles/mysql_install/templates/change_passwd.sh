@@ -12,8 +12,8 @@ else
         source /etc/profile
 fi
 
-mysql -uroot -D mysql -e "UPDATE user SET authentication_string=PASSWORD("$passwd") WHERE user='root';"
+/usr/local/mysql/bin/mysql -uroot -D mysql -e "UPDATE user SET authentication_string=PASSWORD("$passwd") WHERE user='root';"
 
-mysql -uroot -e "FLUSH PRIVILEGES;"
+/usr/local/mysql/bin/mysql -uroot -e "FLUSH PRIVILEGES;"
 
-mysql -uroot -p$passwd -e "grant all privileges on *.* to root@'%'  identified by '$passwd';"
+/usr/local/mysql/bin/mysql -uroot -p$passwd -e "grant all privileges on *.* to root@'%'  identified by '$passwd';"
