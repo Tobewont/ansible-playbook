@@ -1,0 +1,68 @@
+#编译php
+- name: 编译php
+  shell: "cd {{ SOURCE_DIR }}/php-{{ PHP_VER }} && ./configure --prefix={{ PHP_DIR }} --with-config-file-path={{ PHP_DIR }}/etc --with-mysqli=mysqlnd --with-pdo-mysql=mysqlnd --with-mysql={{ MYSQL_DIR }} --with-mysql-sock={{ MYSQL_DIR }}/tmp/mysql.sock --with-iconv-dir --with-freetype-dir --with-jpeg-dir --with-png-dir --with-zlib --with-bz2 --with-libxml-dir --with-curl --with-gd --with-openssl --with-mhash  --with-xmlrpc --with-pdo-mysql --with-libmbfl --with-onig --with-pear --enable-xml --enable-bcmath --enable-shmop --enable-sysvsem --enable-inline-optimization --enable-mbregex --enable-fpm --enable-mbstring --enable-pcntl --enable-sockets --enable-zip --enable-soap --enable-opcache --enable-pdo --enable-mysqlnd-compression-support --enable-maintainer-zts  --enable-session --with-fpm-user={{ PHP_USER }} --with-fpm-group={{ PHP_USER }}"
+  
+#安装php
+- name: 安装php
+  shell: "cd {{ SOURCE_DIR }}/php-{{ PHP_VER }} && make -j 2 && make -j 2 install"
+
+- name: 创建php-fpm配置目录
+  file: name={{ PHP_DIR }}/etc state=directory owner={{ PHP_USER }} group={{ PHP_USER }} mode=0755 recurse=yes
+
+- name: 修改php-fpm配置_1
+  shell: "cd {{ SOURCE_DIR }}/php-{{ PHP_VER }} && cp php.ini-production  {{ PHP_DIR }}/etc/php.ini"
+  
+- name: 修改php-fpm配置_2
+  lineinfile:
+    dest: "{{ PHP_DIR }}/etc/php.ini"
+    regexp: "post_max_size = 8M"
+    line: "post_max_size = 16M"
+
+- name: 修改php-fpm配置_3
+  lineinfile:
+    dest: "{{ PHP_DIR }}/etc/php.ini"
+    regexp: "max_execution_time = 30"
+    line: "max_execution_time = 300"
+
+- name: 修改php-fpm配置_4
+  lineinfile:
+    dest: "{{ PHP_DIR }}/etc/php.ini"
+    regexp: "max_input_time = 60"
+    line: "max_input_time = 300"
+  
+- name: 修改php-fpm配置_5
+  lineinfile:
+    dest: "{{ PHP_DIR }}/etc/php.ini"
+    regexp: ";date.timezone ="
+    line: "date.timezone = Asia/Shanghai"
+
+#复制启动配置文件
+- name: 拷贝启动配置文件
+  shell: "cd {{ SOURCE_DIR }}/php-{{ PHP_VER }} && cp sapi/fpm/init.d.php-fpm  /etc/init.d/php-fpm && chmod +x /etc/init.d/php-fpm"
+  
+#复制php主配置文件
+- name: 拷贝php主配置文件
+  template: src=php-fpm.conf dest={{ PHP_DIR }}/etc/php-fpm.conf owner={{ PHP_USER }} group={{ PHP_USER }}
+
+#编译安装ldap模块
+- name: 编译安装ldap模块
+  shell: "cd {{ SOURCE_DIR }}/php-{{ PHP_VER }}/ext/ldap && cp -af /usr/lib64/libldap* /usr/lib/ && {{ PHP_DIR }}/bin/phpize && ./configure --with-php-config={{ PHP_DIR }}/bin/php-config && make && make install"
+
+- name: 修改php-fpm配置_6
+  lineinfile:
+    dest: "{{ PHP_DIR }}/etc/php.ini"
+    regexp: ";extension=bz2"
+    line: "aextension=ldap.so"
+  
+#编译安装gettext模块
+- name: 编译安装gettext模块
+  shell: "cd {{ SOURCE_DIR }}/php-{{ PHP_VER }}/ext/gettext && cp -af /usr/lib64/libldap* /usr/lib/ && {{ PHP_DIR }}/bin/phpize && ./configure --with-php-config={{ PHP_DIR }}/bin/php-config && make && make install"
+
+- name: 修改php-fpm配置_7
+  lineinfile:
+    dest: "{{ PHP_DIR }}/etc/php.ini"
+    regexp: ";extension=bz2"
+    line: "aextension=gettext.so"
+
+- name: 启动php并开机启动
+  shell: "chkconfig --add php-fpm && chkconfig php-fpm on && /etc/init.d/php-fpm start"

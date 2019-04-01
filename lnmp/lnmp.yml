@@ -1,0 +1,15 @@
+---
+- hosts: dbserver
+  remote_user: root
+  gather_facts: True
+
+  roles:
+    - mysql_install
+
+- hosts: webserver
+  remote_user: root
+  gather_facts: True
+
+  roles:
+    - php_install
+    - nginx_install

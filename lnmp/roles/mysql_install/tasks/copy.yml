@@ -1,0 +1,51 @@
+- name: 创建mysql用户组
+  group: name={{ MYSQL_USER }}  state=present
+
+- name: 创建mysql用户
+  user: name={{ MYSQL_USER }}  group={{ MYSQL_USER }}  state=present create_home=False shell=/sbin/nologin
+
+- name: 创建所需目录
+  file: name={{ item }} state=directory mode=0755 recurse=yes
+  with_items:
+  - "{{ SOURCE_DIR }}"
+  - "{{ DATA_DIR }}"
+
+- name: 更改目录属主属组
+  file: name={{ DATA_DIR }} owner={{ MYSQL_USER }} group={{ MYSQL_USER }}
+
+#当前主机下没有mysql包
+- name: 下载mysql包
+  get_url: url={{ DOWNLOAD_URL }} dest={{ SOURCE_DIR }} owner={{ MYSQL_USER }} group={{ MYSQL_USER }}
+
+#当前主机file目录下已有mysql包
+#- name: 拷贝现有mysql包到所有主机
+#  copy: src=mysql-{{ MYSQL_VER }}-linux-glibc2.12-x86_64.tar.gz dest={{ SOURCE_DIR }} owner={{ MYSQL_USER }} group={{ MYSQL_USER }}
+
+- name: 解压mysql包
+  unarchive: src={{ SOURCE_DIR }}/mysql-{{ MYSQL_VER }}-linux-glibc2.12-x86_64.tar.gz dest=/usr/local owner={{ MYSQL_USER }} group={{ MYSQL_USER }}
+
+- name: 目录重命名
+  shell: "mv /usr/local/mysql-{{ MYSQL_VER }}-linux-glibc2.12-x86_64 {{ BASE_DIR }} && chown -R {{ MYSQL_USER }}:{{ MYSQL_USER }} {{ BASE_DIR }}"
+
+#复制mysql配置文件
+- name: 拷贝mysql配置文件
+  template: src=my.cnf dest=/etc/my.cnf owner=root group=root
+
+#复制mysql服务文件
+- name: 拷贝mysql服务文件
+  template: src=mysqld.service dest=/usr/lib/systemd/system/mysqld.service owner=root group=root
+
+#复制更改密码脚本
+- name: 拷贝更改密码脚本
+  template: src=change_passwd.sh dest={{ SOURCE_DIR }} owner=root group=root
+
+- name: 创建日志目录
+  file: name={{ item }} state=directory owner={{ MYSQL_USER }} group={{ MYSQL_USER }} mode=0755 recurse=yes
+  with_items:
+  - "/var/log/mysql"
+  - "/var/run/mysqld"
+  - "{{ BASE_DIR }}/tmp"
+  - "{{ BASE_DIR }}/log"
+
+- name: 创建错误日志文件
+  file: dest={{ BASE_DIR }}/log/error.log state=touch owner={{ MYSQL_USER }} group={{ MYSQL_USER }}
