@@ -1,0 +1,7 @@
+#用于批量安装Tomcat
+- hosts: javaserver
+  remote_user: root
+  gather_facts: True
+
+  roles:
+    - tomcat_install

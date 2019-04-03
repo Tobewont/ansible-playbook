@@ -1,0 +1,18 @@
+- name: 创建software目录
+  file: name={{ SOURCE_DIR }} state=directory mode=0755 recurse=yes
+
+#本地files目录下要准备好jdk包
+- name: 拷贝jdk包
+  copy: src=jdk-8u{{ JDK_VER }}-linux-x64.tar.gz dest={{ SOURCE_DIR }} owner=root group=root
+
+- name: 解压jdk包
+  unarchive: src={{ SOURCE_DIR }}/jdk-8u{{ JDK_VER }}-linux-x64.tar.gz dest={{ SOURCE_DIR }} owner=root group=root
+
+- name: 目录重命名
+  shell: "if [ ! -d {{ JDK_DIR }} ]; then mv {{ SOURCE_DIR }}/jdk1.8.0_{{ JDK_VER }}/ {{ JDK_DIR }}; fi"
+
+- name: 拷贝环境变量jdk_PATH
+  template: src=jdk_PATH dest={{ SOURCE_DIR }} owner=root group=root
+
+- name: 加入环境变量jdk_PATH
+  shell: "if [ `grep {{ JDK_DIR }}/bin /etc/profile |wc -l` -eq 0 ]; then cat {{ SOURCE_DIR }}/jdk_PATH >> /etc/profile && source /etc/profile; fi"

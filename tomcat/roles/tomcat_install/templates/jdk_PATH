@@ -1,0 +1,5 @@
+JAVA_HOME={{ JDK_DIR }}
+JAVA_BIN={{ JDK_DIR }}/bin
+JRE_HOME={{ JDK_DIR }}/jre
+PATH=$PATH:{{ JDK_DIR }}/bin:{{ JDK_DIR }}/jre/bin
+CLASSPATH={{ JDK_DIR }}/jre/lib:{{ JDK_DIR }}/lib:{{ JDK_DIR }}/jre/lib/charsets.jar

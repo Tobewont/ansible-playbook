@@ -1,0 +1,55 @@
+#当前主机下没有tomcat包
+- name: 下载tomcat包
+  get_url: url={{ DOWNLOAD_URL }} dest={{ SOURCE_DIR }} owner=root group=root
+
+#当前主机files目录下已有tomcat包
+#- name: 拷贝现有tomcat包到所有主机
+#  copy: src=apache-tomcat-{{ TOMCAT_VER }}.tar.gz dest={{ SOURCE_DIR }}
+
+- name: 解压tomcat包
+  unarchive: src={{ SOURCE_DIR }}/apache-tomcat-{{ TOMCAT_VER }}.tar.gz dest={{ SOURCE_DIR }} owner=root group=root
+
+- name: 目录重命名
+  shell: "if [ ! -d {{ TOMCAT_DIR }} ]; then mv {{ SOURCE_DIR }}/apache-tomcat-{{ TOMCAT_VER }}/ {{ TOMCAT_DIR }}; fi"
+
+- name: 加入环境变量_1
+  lineinfile:
+    dest: "{{ TOMCAT_DIR }}/bin/catalina.sh"
+    insertbefore: "cygwin=false"
+    line: "CATALINA_HOME={{ TOMCAT_DIR }}"
+
+- name: 加入环境变量_2
+  lineinfile:
+    dest: "{{ TOMCAT_DIR }}/bin/catalina.sh"
+    insertbefore: "cygwin=false"
+    line: "JAVA_HOME={{ JDK_DIR }}"
+
+- name: 加入环境变量_3
+  lineinfile:
+    dest: "{{ TOMCAT_DIR }}/bin/catalina.sh"
+    insertbefore: "cygwin=false"
+    line: "JRE_BIN={{ JDK_DIR }}/bin"
+
+- name: 加入环境变量_4
+  lineinfile:
+    dest: "{{ TOMCAT_DIR }}/bin/catalina.sh"
+    insertbefore: "cygwin=false"
+    line: "JRE_HOME={{ JDK_DIR }}/jre"
+
+- name: 加入环境变量_5
+  lineinfile:
+    dest: "{{ TOMCAT_DIR }}/bin/catalina.sh"
+    insertbefore: "cygwin=false"
+    line: "CLASSPATH={{ JDK_DIR }}/jre/lib:{{ JDK_DIR }}/lib:{{ JDK_DIR }}/jre/lib/charsets.jar"
+
+- name: 拷贝tomcat启动脚本_1
+  template: src=tomcat dest=/usr/bin/ owner=root group=root mode=0755
+
+- name: 拷贝tomcat启动脚本_2
+  template: src=tomcat dest=/etc/init.d/ owner=root group=root mode=0755
+
+- name: 启动tomcat并开机启动
+  service:
+    name: tomcat
+    state: restarted
+    enabled: yes

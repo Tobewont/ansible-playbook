@@ -1,0 +1,12 @@
+#定义tomcat安装中的变量
+JDK_VER: 191
+TOMCAT_VER: 8.5.39
+TOMCAT_VER_MAIN: "{{ TOMCAT_VER.split('.')[0] }}"
+DOWNLOAD_URL: https://mirrors.shu.edu.cn/apache/tomcat/tomcat-{{ TOMCAT_VER_MAIN }}/v{{ TOMCAT_VER }}/bin/apache-tomcat-{{ TOMCAT_VER }}.tar.gz
+
+TOMCAT_URL: tomcat
+TOMCAT_PORT: 8080
+SOURCE_DIR: /software
+JDK_DIR: /usr/local/jdk
+TOMCAT_DIR: /usr/local/tomcat
+DATA_DIR: /data/tomcat
