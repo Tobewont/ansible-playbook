@@ -2,11 +2,11 @@
 #该脚本用于更改数据库root密码
 
 passwd={{ MYSQL_PASSWD }}
-n=`grep "/usr/local/mysql/bin" /etc/profile |wc -l`
+n=`grep "{{ BASE_DIR }}/bin" /etc/profile |wc -l`
 
 if [ $n -eq 0 ]
 then
-        echo "export PATH=$PATH:/usr/local/mysql/bin" >> /etc/profile
+        echo "export PATH=$PATH:{{ BASE_DIR }}/bin" >> /etc/profile
         source /etc/profile
 else
         source /etc/profile
