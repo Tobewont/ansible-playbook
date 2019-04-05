@@ -1,0 +1,87 @@
+- name: 拷贝zabbix配置文件
+  template: src=zabbix.conf dest=/etc/httpd/conf.d/ owner=root group=root
+
+- name: 启动httpd
+  service:
+    name: httpd
+    state: started
+    enabled: yes
+    
+- name: 修改zabbix_server配置_1
+  lineinfile:
+    dest: /etc/zabbix/zabbix_server.conf
+    insertafter: "# DBHost=localhost"
+    line: "DBHost=Hostname={{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] }}"
+    
+- name: 修改zabbix_server配置_2
+  lineinfile:
+    dest: /etc/zabbix/zabbix_server.conf
+    insertafter: "# DBPassword="
+    line: "DBPassword={{ MYSQL_PASSWD }}"
+
+#监控jvm/tomcat性能
+- name: 修改zabbix_server配置_3
+  lineinfile:
+    dest: /etc/zabbix/zabbix_server.conf
+    insertafter: "# JavaGateway="
+    line: "JavaGateway=Hostname={{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] }}"
+
+- name: 修改zabbix_server配置_4
+  lineinfile:
+    dest: /etc/zabbix/zabbix_server.conf
+    insertafter: "# JavaGatewayPort=10052"
+    line: "JavaGatewayPort=10052"
+    
+- name: 修改zabbix_server配置_5
+  lineinfile:
+    dest: /etc/zabbix/zabbix_server.conf
+    insertafter: "# StartJavaPollers=0"
+    line: "StartJavaPollers=5"
+
+- name: 修改zabbix_server配置_6
+  lineinfile:
+    dest: /etc/zabbix/zabbix_server.conf
+    insertafter: "# CacheSize=8M"
+    line: "CacheSize=1G"
+
+- name: 修改zabbix_server配置_7
+  lineinfile:
+    dest: /etc/zabbix/zabbix_server.conf
+    insertafter: "# HistoryCacheSize=16M"
+    line: "HistoryCacheSize=256M"
+
+- name: 修改zabbix_server配置_8
+  lineinfile:
+    dest: /etc/zabbix/zabbix_server.conf
+    insertafter: "# HistoryIndexCacheSize=4M"
+    line: "HistoryIndexCacheSize=256M"
+
+- name: 修改zabbix_server配置_9
+  lineinfile:
+    dest: /etc/zabbix/zabbix_server.conf
+    insertafter: "# TrendCacheSize=4M"
+    line: "TrendCacheSize=256M"
+
+- name: 修改zabbix_server配置_10
+  lineinfile:
+    dest: /etc/zabbix/zabbix_server.conf
+    insertafter: "# ValueCacheSize=8M"
+    line: "ValueCacheSize=512M"
+    
+- name: 修改zabbix_server配置_11
+  lineinfile:
+    dest: /etc/zabbix/zabbix_server.conf
+    regexp: "Timeout=4"
+    insertbefore: "### Option: TrapperTimeout"
+    line: "Timeout=30"
+
+- name: 启动nginx
+  service:
+    name: nginx
+    state: started
+
+- name: 启动zabbix-server并开机启动
+  service:
+    name: zabbix-server
+    state: started
+    enabled: yes

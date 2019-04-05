@@ -1,0 +1,30 @@
+- name: 安装RPM包
+  yum:
+    name: https://mirror.webtatic.com/yum/el7/webtatic-release.rpm
+    state: present
+
+- name: 安装软件
+  yum:
+    name:
+      - httpd
+      - php72w
+      - php72w-cli
+      - php72w-common
+      - php72w-devel
+      - php72w-embedded
+      - php72w-fpm
+      - php72w-gd
+      - php72w-mbstring
+      - php72w-mysqlnd
+      - php72w-opcache
+      - php72w-pdo
+      - php72w-xml
+      - php72w-bcmath
+      - php72w-ctype
+      - libjpeg*
+      - php72w-xmlreader
+      - php72w-xmlwriter
+      - php72w-session
+      - php72w-gettext
+      - php72w-ldap
+    state: latest

@@ -1,0 +1,49 @@
+- name: 安装RPM包
+  yum:
+    name: "{{ RPM_URL }}"
+    state: present
+
+- name: 安装软件
+  yum:
+    name:
+      - zabbix-agent
+    state: latest
+    
+- name: 修改zabbix_agent配置_1
+  lineinfile:
+    dest: /etc/zabbix/zabbix_agentd.conf
+    regexp: "Server=127.0.0.1"
+    insertbefore: "### Option: ListenPort"
+    line: "Server={{ SERVER_IP }}"
+    
+- name: 修改zabbix_server配置_2
+  lineinfile:
+    dest: /etc/zabbix/zabbix_agentd.conf
+    insertafter: "# StartAgents=3"
+    line: "StartAgents=3"
+
+- name: 修改zabbix_server配置_3
+  lineinfile:
+    dest: /etc/zabbix/zabbix_agentd.conf
+    regexp: "ServerActive=127.0.0.1"
+    insertbefore: "### Option: Hostname"
+    line: "ServerActive={{ SERVER_IP }}"
+
+- name: 修改zabbix_server配置_4
+  lineinfile:
+    dest: /etc/zabbix/zabbix_agentd.conf
+    regexp: "Hostname=Zabbix server"
+    insertbefore: "### Option: HostnameItem"
+    line: "Hostname={{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] }}"
+    
+- name: 修改zabbix_server配置_5
+  lineinfile:
+    dest: /etc/zabbix/zabbix_agentd.conf
+    insertafter: "# UnsafeUserParameters=0"
+    line: "UnsafeUserParameters=1"
+    
+- name: 启动zabbix-agent并开机启动
+  service:
+    name: zabbix-agent
+    state: started
+    enabled: yes

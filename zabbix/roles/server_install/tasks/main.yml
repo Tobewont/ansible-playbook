@@ -1,0 +1,4 @@
+#引用prepare、config、install模块
+- include: prepare.yml
+- include: config.yml
+- include: install.yml

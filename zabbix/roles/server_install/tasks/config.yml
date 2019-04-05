@@ -1,0 +1,34 @@
+- name: 安装RPM包
+  yum:
+    name: "{{ RPM_URL }}"
+    state: present
+
+- name: 安装软件
+  yum:
+    name:
+      - zabbix-agent
+      - zabbix-get
+      - zabbix-server-mysql
+      - zabbix-web
+      - zabbix-web-mysql
+      - zabbix-java-gateway
+    state: latest
+
+- name: 拷贝zabbix数据库配置脚本
+  template: src=mysql_config.sh dest={{ SOURCE_DIR }} owner=root group=root
+  
+- name: 创建zabbix库、授权、导入数据
+  shell: "bash {{ SOURCE_DIR }}/mysql_config.sh"
+ 
+- name: 修改httpd配置_1
+  lineinfile:
+    dest: /etc/httpd/conf/httpd.conf
+    regexp: "Listen 80"
+    insertafter: "#Listen 12.34.56.78:80"
+    line: "Listen {{ HTTPD_PORT }}"
+    
+- name: 修改httpd配置_2
+  lineinfile:
+    dest: /etc/httpd/conf/httpd.conf
+    insertafter: "Include conf.modules.d/*.conf"
+    line: "Include conf.d/*.conf"

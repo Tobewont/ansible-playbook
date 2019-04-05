@@ -1,0 +1,9 @@
+#定义zabbix安装中的变量
+ZABBIX_VER: 3.4
+RPM_URL: https://repo.zabbix.com/zabbix/{{ ZABBIX_VER }}/rhel/7/x86_64/zabbix-release-{{ ZABBIX_VER }}-2.el7.noarch.rpm
+
+SOURCE_DIR: /software
+HTTPD_PORT: 8081
+BASE_DIR: /usr/local/mysql
+MYSQL_PASSWD: 123456789
+DOMAIN: zabbix.lzxlinux.com

@@ -1,0 +1,5 @@
+#定义zabbix安装中的变量
+ZABBIX_VER: 3.4
+RPM_URL: https://repo.zabbix.com/zabbix/{{ ZABBIX_VER }}/rhel/7/x86_64/zabbix-release-{{ ZABBIX_VER }}-2.el7.noarch.rpm
+
+SERVER_IP: 192.168.30.128               #安装前必须指定zabbix-server IP

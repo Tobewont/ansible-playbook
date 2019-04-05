@@ -1,0 +1,16 @@
+---
+- hosts: zbxserver
+  remote_user: root
+  gather_facts: True
+
+  roles:
+    - mysql_install
+    - nginx_install
+    - server_install
+
+- hosts: zbxagent
+  remote_user: root
+  gather_facts: True
+
+  roles:
+    - agent_install
