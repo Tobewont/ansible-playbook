@@ -1,0 +1,1 @@
+通过ansible-playbook，批量部署LNMP环境
