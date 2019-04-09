@@ -1,6 +1,6 @@
 #编译nginx
 - name: 编译nginx
-  shell: "cd {{ SOURCE_DIR }}/nginx-{{ NGINX_VER }} && ./configure --prefix={{ NGINX_DIR }} --user={{ NGINX_USER }} --group={{ NGINX_USER }} --http-log-path={{ DATA_DIR }}/log/access.log --error-log-path={{ DATA_DIR }}/log/error.log --with-http_ssl_module --with-http_realip_module --with-http_flv_module --with-http_mp4_module --with-http_gunzip_module --with-http_gzip_static_module --with-http_image_filter_module --with-http_stub_status_module"
+  shell: "cd {{ SOURCE_DIR }}/nginx-{{ NGINX_VER }} && ./configure --prefix={{ NGINX_DIR }} --user={{ NGINX_USER }} --group={{ NGINX_USER }} --http-log-path={{ DATA_DIR }}/log/access.log --error-log-path={{ DATA_DIR }}/log/error.log --with-http_ssl_module --with-http_v2_module --with-http_realip_module --with-http_flv_module --with-http_mp4_module --with-http_gunzip_module --with-http_gzip_static_module --with-http_image_filter_module --with-http_stub_status_module"
 
 #安装nginx
 - name: 安装nginx
