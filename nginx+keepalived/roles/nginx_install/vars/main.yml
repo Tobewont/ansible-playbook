@@ -1,0 +1,8 @@
+#定义nginx安装中的变量
+NGINX_VER: 1.15.0
+DOWNLOAD_URL: http://nginx.org/download/nginx-{{ NGINX_VER }}.tar.gz
+NGINX_USER: nginx
+NGINX_PORT: 80
+SOURCE_DIR: /software
+NGINX_DIR: /usr/local/nginx
+DATA_DIR: /data/nginx

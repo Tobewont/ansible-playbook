@@ -1,0 +1,8 @@
+---
+- hosts: webserver
+  remote_user: root
+  gather_facts: True
+
+  roles:
+    - nginx_install
+    - keepalived_install

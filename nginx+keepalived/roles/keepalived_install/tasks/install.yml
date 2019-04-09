@@ -1,0 +1,18 @@
+- name: yum安装keepalived
+  yum: name=keepalived state=latest
+  
+- name: 拷贝master配置文件
+  template: src=keepalived_master.conf dest=/etc/keepalived/keepalived.conf mode=0644 owner=root group=root
+  when: 
+    - hostvars[inventory_hostname]['ansible_default_ipv4']['address'] == "{{ MASTER_IP }}"
+  
+- name: 拷贝backup配置文件
+  template: src=keepalived_backup.conf dest=/etc/keepalived/keepalived.conf mode=0644 owner=root group=root
+  when: 
+    - hostvars[inventory_hostname]['ansible_default_ipv4']['address'] != "{{ MASTER_IP }}"
+
+- name: 拷贝监控nginx服务脚本
+  template: src=check_nginx.sh dest={{ SCRIPT_DIR }} mode=0755 owner=root group=root
+
+- name: 启动keepalived服务
+  service: name=keepalived state=started enabled=yes

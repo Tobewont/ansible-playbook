@@ -1,0 +1,7 @@
+SOURCE_DIR: /software
+INF: ens33
+MASTER_IP: 192.168.30.128
+VIP_IP: 192.168.30.100
+VRRP_SCRIPT: check_nginx
+SCRIPT_DIR: /usr/local/sbin/
+PASSWORD: 123456
