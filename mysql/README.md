@@ -1,0 +1,1 @@
+通过ansible-playbook，以二进制包方式批量部署mysql
