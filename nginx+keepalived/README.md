@@ -1,0 +1,1 @@
+通过ansible-playbook，部署nginx高可用集群
