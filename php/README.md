@@ -1,0 +1,1 @@
+通过ansible-playbook，以源码编译方式部署php
