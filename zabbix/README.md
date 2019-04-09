@@ -1,0 +1,1 @@
+通过ansible-playbook，批量部署Zabbix-server和Zabbix-agent
