@@ -1,0 +1,28 @@
+- name: yum安装ipvsadm
+  yum: name=ipvsadm state=latest
+  when: 
+    - hostvars[inventory_hostname]['ansible_default_ipv4']['address'] == "{{ MASTER_IP }}"
+    
+- name: 拷贝lvs dir配置脚本
+  template: src=lvs_dr_dir.sh dest={{ SCRIPT_DIR }} mode=0755 owner=root group=root
+  when: 
+    - hostvars[inventory_hostname]['ansible_default_ipv4']['address'] == "{{ MASTER_IP }}"
+
+- name: 拷贝lvs rs配置脚本
+  template: src=lvs_dr_rs.sh dest={{ SCRIPT_DIR }} mode=0755 owner=root group=root
+
+- name: 清空ipvsadm规则
+  shell: "ipvsadm -C && systemctl restart network"
+  when:
+    - hostvars[inventory_hostname]['ansible_default_ipv4']['address'] == "{{ MASTER_IP }}"
+
+- name: dir执行配置脚本
+  shell: "bash {{ SCRIPT_DIR }}/lvs_dr_dir.sh"
+  when: 
+    - hostvars[inventory_hostname]['ansible_default_ipv4']['address'] == "{{ MASTER_IP }}"
+
+- name: rs执行配置脚本
+  shell: "bash {{ SCRIPT_DIR }}/lvs_dr_rs.sh"
+
+- name: 启动keepalived服务
+  service: name=keepalived state=started enabled=yes

@@ -1,0 +1,9 @@
+#定义lvs安装中的变量
+INF: ens33
+NGINX_PORT: 80
+MASTER_IP: 192.168.30.128
+BACKUP1_IP: 192.168.30.129
+BACKUP2_IP: 192.168.30.130
+VIP_IP: 192.168.30.100
+SCRIPT_DIR: /usr/local/sbin
+SA: wrr            #调度算法
