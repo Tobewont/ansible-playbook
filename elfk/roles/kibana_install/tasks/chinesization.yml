@@ -1,0 +1,30 @@
+#当前主机files目录下没有汉化包
+#- name: 下载kibana汉化包
+#  get_url: url={{ CH_URL }} dest={{ SOURCE_DIR }}
+
+#当前主机files目录下已有汉化包
+- name: 拷贝现有node包到所有主机
+  copy: src=Kibana_Hanization-master.zip dest={{ SOURCE_DIR }}
+
+- name: 解压汉化包
+  shell: "if [ ! -d Kibana_Hanization-master ]; then unzip Kibana_Hanization-master.zip; fi"
+  args:
+    chdir: "{{ SOURCE_DIR }}"
+    warn: False
+  
+- name: 拷贝汉化包
+  shell: "if [ ! -d {{ ELFK_DIR }}/kibana/src/legacy/core_plugins/kibana/translations ]; then cp -r {{ SOURCE_DIR }}/Kibana_Hanization-master/translations/ {{ ELFK_DIR }}/kibana/src/legacy/core_plugins/kibana/; fi"
+  
+- name: 修改kibana配置
+  lineinfile:
+    dest: "{{ ELFK_DIR }}/kibana/config/kibana.yml"
+    insertbefore: "server.port: {{ KIBANA_PORT }}"
+    line: 'i18n.locale: "zh_CN"'
+
+- name: 修改属主属组
+  file: name={{ ELFK_DIR }}/kibana/ state=directory owner={{ ELFK_USER }} group={{ ELFK_USER }} recurse=yes
+ 
+- name: 重启kibana
+  service:
+    name: kibana
+    state: restarted

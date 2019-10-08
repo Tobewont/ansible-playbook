@@ -1,0 +1,6 @@
+#定义head安装中的变量
+NODE_VER: 10.16.3
+NODE_URL: https://nodejs.org/dist/v{{ NODE_VER }}/node-v{{ NODE_VER }}-linux-x64.tar.xz
+HEAD_URL: https://github.com/mobz/elasticsearch-head/archive/master.zip
+SOURCE_DIR: /software
+ELFK_DIR: /home/elfk

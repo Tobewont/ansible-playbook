@@ -1,0 +1,12 @@
+#定义logstash安装中的变量
+LOGSTASH_VER: 6.7.1
+DOWNLOAD_URL: https://artifacts.elastic.co/downloads/logstash/logstash-{{ LOGSTASH_VER }}.tar.gz
+SOURCE_DIR: /software
+ELFK_USER: elk
+ELFK_DIR: /home/elfk
+JAVA_DIR: /usr/local/jdk
+LOGSTASH_PORT: 5050
+ES1_IP: 192.168.30.128
+ES2_IP: 192.168.30.129
+ES3_IP: 192.168.30.130
+ES_PORT: 9200

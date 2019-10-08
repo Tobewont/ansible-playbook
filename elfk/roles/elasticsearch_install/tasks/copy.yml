@@ -1,0 +1,63 @@
+- name: 创建elk用户组
+  group: name={{ ELFK_USER }}  state=present
+
+- name: 创建elfk用户
+  user: name={{ ELFK_USER }}  group={{ ELFK_USER }}  state=present create_home=False shell=/sbin/nologin
+
+- name: 创建software目录
+  file: name={{ SOURCE_DIR }} state=directory recurse=yes
+
+- name: 创建elfk目录
+  file: name={{ ELFK_DIR }} state=directory recurse=yes
+  ignore_errors: yes
+
+#当前主机files目录下没有elasticsearch包
+#- name: 下载elasticsearch包
+#  get_url: url={{ DOWNLOAD_URL }} dest={{ SOURCE_DIR }}
+
+#当前主机files目录下已有elasticsearch包
+- name: 拷贝现有elasticsearch包到目标主机
+  copy: src=elasticsearch-{{ ES_VER }}.tar.gz dest={{ SOURCE_DIR }}
+
+- name: 解压elasticsearch包
+  shell: "tar zxf elasticsearch-{{ ES_VER }}.tar.gz"
+  args:
+    chdir: "{{ SOURCE_DIR }}"
+    warn: False
+
+- name: 目录重命名
+  shell: "if [ ! -d {{ ELFK_DIR }}/elasticsearch ]; then mv {{ SOURCE_DIR }}/elasticsearch-{{ ES_VER }}/ {{ ELFK_DIR }}/elasticsearch; fi"
+
+- name: 创建数据、pid目录
+  file: name={{ item }} state=directory recurse=yes
+  with_items:
+  - "{{ ELFK_DIR }}/elasticsearch/data"
+  - "{{ ELFK_DIR }}/elasticsearch/run"
+
+- name: 创建pid文件
+  file: name={{ item }} state=touch 
+  with_items:
+  - "{{ ELFK_DIR }}/elasticsearch/run/elasticsearch.pid"
+
+- name: 拷贝配置文件
+  template: src=elasticsearch.conf dest={{ SOURCE_DIR }} owner=root group=root
+
+- name: 配置elasticsearch
+  shell: "if [ `grep 'http.port' elasticsearch.yml |wc -l` -eq 1 ]; then cat {{ SOURCE_DIR }}/elasticsearch.conf >> elasticsearch.yml; fi"
+  args:
+    chdir: "{{ ELFK_DIR }}/elasticsearch/config"
+
+- name: 拷贝服务配置文件
+  template: src=elasticsearch dest=/etc/sysconfig/elasticsearch owner=root group=root
+
+- name: 拷贝服务文件
+  template: src=elasticsearch.service dest=/usr/lib/systemd/system/elasticsearch.service mode=0755 owner=root group=root
+
+- name: 修改属主属组
+  file: name={{ ELFK_DIR }}/elasticsearch/ state=directory owner={{ ELFK_USER }} group={{ ELFK_USER }} recurse=yes
+
+- name: 启动elasticsearch并开机启动
+  service:
+    name: elasticsearch
+    state: started
+    enabled: yes

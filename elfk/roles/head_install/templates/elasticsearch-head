@@ -1,0 +1,30 @@
+#!/bin/bash
+#chkconfig: 2345 55 24
+#description: elasticsearch-head service manager
+
+data="cd {{ ELFK_DIR }}/head/; nohup npm run start &>/dev/null &"
+
+START() {
+    eval $data
+}
+
+STOP() {
+    ps -ef | grep grunt | grep -v "grep" | awk '{print $2}' | xargs kill -s 9 &>/dev/null
+}
+
+case "$1" in
+    start)
+        START
+        ;;
+    stop)
+        STOP
+        ;;
+    restart)
+        STOP
+        sleep 2
+        START
+        ;;
+    *)
+        echo "Usage: elasticsearch-head (|start|stop|restart)"
+        ;;
+esac

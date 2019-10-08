@@ -1,0 +1,32 @@
+- name: 创建software目录
+  file: name={{ SOURCE_DIR }} state=directory recurse=yes
+  
+- name: 创建elfk目录
+  file: name={{ ELFK_DIR }} state=directory recurse=yes
+  ignore_errors: yes
+
+#当前主机files目录下没有node包
+- name: 下载node包
+  get_url: url={{ NODE_URL }} dest={{ SOURCE_DIR }} owner=root group=root
+
+#当前主机files目录下已有node包
+#- name: 拷贝现有node包到所有主机
+#  copy: src=node-v{{ NODE_VER }}-linux-x64.tar.xz dest={{ SOURCE_DIR }} owner=root group=root
+
+- name: 解压node包
+  shell: "tar Jxf node-v{{ NODE_VER }}-linux-x64.tar.xz"
+  args:
+    chdir: "{{ SOURCE_DIR }}"
+    warn: False
+
+- name: 目录重命名
+  shell: "if [ ! -d {{ ELFK_DIR }}/node ]; then mv {{ SOURCE_DIR }}/node-v{{ NODE_VER }}-linux-x64/ {{ ELFK_DIR }}/node; fi"
+
+- name: 拷贝环境变量node_PATH
+  template: src=node_PATH dest={{ SOURCE_DIR }} owner=root group=root
+
+- name: 加入node_PATH到~/.bashrc
+  shell: "if [ `grep {{ ELFK_DIR }}/node ~/.bashrc |wc -l` -eq 0 ]; then cat {{ SOURCE_DIR }}/node_PATH >> ~/.bashrc && source ~/.bashrc; fi"
+
+- name: 加入node_PATH到/etc/profile
+  shell: "if [ `grep {{ ELFK_DIR }}/node /etc/profile |wc -l` -eq 0 ]; then cat {{ SOURCE_DIR }}/node_PATH >> /etc/profile && source /etc/profile; fi"

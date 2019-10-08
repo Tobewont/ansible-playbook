@@ -1,0 +1,40 @@
+- name: 创建nginx用户组
+  group: name={{ NGINX_USER }}  state=present
+
+- name: 创建nginx用户
+  user: name={{ NGINX_USER }}  group={{ NGINX_USER }}  state=present create_home=False shell=/sbin/nologin
+
+- name: 创建software目录
+  file: name={{ SOURCE_DIR }} state=directory recurse=yes
+  
+- name: 创建日志目录
+  file: name={{ item }} state=directory recurse=yes
+  with_items:
+  - "{{ NGINX_DIR }}"
+  - "{{ NGINX_DIR }}/logs"
+  
+- name: 创建日志文件
+  file: name={{ item }} state=touch
+  with_items:
+  - "{{ NGINX_DIR }}/logs/access.log"
+  - "{{ NGINX_DIR }}/logs/error.log"
+
+#当前主机files目录下没有nginx包
+- name: 下载nginx包
+  get_url: url={{ DOWNLOAD_URL }} dest={{ SOURCE_DIR }}
+
+#当前主机files目录下已有nginx包
+#- name: 拷贝现有nginx包到所有主机
+#  copy: src=nginx-{{ NGINX_VER }}.tar.gz dest={{ SOURCE_DIR }}
+
+- name: 解压nginx包
+  shell: "tar zxf nginx-{{ NGINX_VER }}.tar.gz"
+  args:
+    chdir: "{{ SOURCE_DIR }}"
+    warn: False
+
+- name: 修改属主属组
+  file: name={{ NGINX_DIR }} state=directory owner={{ NGINX_USER }} group={{ NGINX_USER }} recurse=yes
+
+- name: 拷贝nginx服务文件
+  template: src=nginx.service dest=/usr/lib/systemd/system/nginx.service mode=0755 owner=root group=root

@@ -1,0 +1,4 @@
+#引用prepare、copy、chinesization模块
+- include: prepare.yml
+- include: copy.yml
+- include: chinesization.yml

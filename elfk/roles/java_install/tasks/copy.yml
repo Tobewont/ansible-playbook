@@ -1,0 +1,33 @@
+- name: 拷贝系统环境limits.conf
+  template: src=limits.conf dest={{ SOURCE_DIR }} owner=root group=root
+
+- name: 配置系统环境limits.conf
+  shell: "if [ `grep '* soft nofile 65536' /etc/security/limits.conf |wc -l` -eq 0 ]; then cat {{ SOURCE_DIR }}/limits.conf >> /etc/security/limits.conf; fi"
+  
+- name: 配置系统环境
+  shell: "if [ `grep 'vm.max_map_count' /etc/sysctl.conf |wc -l` -eq 0 ]; then echo 'vm.max_map_count=655360' >> /etc/sysctl.conf && sysctl -p; fi"
+
+- name: 创建software目录
+  file: name={{ SOURCE_DIR }} state=directory recurse=yes
+
+#当前主机files目录下要准备好jdk包
+- name: 拷贝jdk包
+  copy: src=jdk-8u{{ JAVA_VER }}-linux-x64.tar.gz dest={{ SOURCE_DIR }} owner=root group=root
+
+- name: 解压jdk包
+  shell: "tar zxf jdk-8u{{ JAVA_VER }}-linux-x64.tar.gz"
+  args:
+    chdir: "{{ SOURCE_DIR }}"
+    warn: False
+
+- name: 目录重命名
+  shell: "if [ ! -d {{ JAVA_DIR }} ]; then mv {{ SOURCE_DIR }}/jdk1.8.0_{{ JAVA_VER }}/ {{ JAVA_DIR }}; fi"
+
+- name: 拷贝环境变量java_PATH
+  template: src=java_PATH dest={{ SOURCE_DIR }} owner=root group=root
+
+- name: 加入java_PATH到~/.bashrc
+  shell: "if [ `grep {{ JAVA_DIR }} ~/.bashrc |wc -l` -eq 0 ]; then cat {{ SOURCE_DIR }}/java_PATH >> ~/.bashrc && source ~/.bashrc; fi"
+
+- name: 加入java_PATH到/etc/profile
+  shell: "if [ `grep {{ JAVA_DIR }} /etc/profile |wc -l` -eq 0 ]; then cat {{ SOURCE_DIR }}/java_PATH >> /etc/profile && source /etc/profile; fi"

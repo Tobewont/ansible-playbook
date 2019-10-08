@@ -1,0 +1,62 @@
+- name: 创建elk用户组
+  group: name={{ ELFK_USER }}  state=present
+
+- name: 创建elfk用户
+  user: name={{ ELFK_USER }}  group={{ ELFK_USER }}  state=present create_home=False shell=/sbin/nologin
+  
+- name: 创建software目录
+  file: name={{ SOURCE_DIR }} state=directory recurse=yes
+
+- name: 创建elfk目录
+  file: name={{ ELFK_DIR }} state=directory recurse=yes
+  ignore_errors: yes
+
+#当前主机files目录下没有kibana包
+#- name: 下载kibana包
+#  get_url: url={{ DOWNLOAD_URL }} dest={{ SOURCE_DIR }}
+
+#当前主机files目录下已有kibana包
+- name: 拷贝现有kibana包到目标主机
+  copy: src=kibana-{{ KIBANA_VER }}-linux-x86_64.tar.gz dest={{ SOURCE_DIR }}
+
+- name: 解压kibana包
+  shell: "tar zxf kibana-{{ KIBANA_VER }}-linux-x86_64.tar.gz"
+  args:
+    chdir: "{{ SOURCE_DIR }}"
+    warn: False
+
+- name: 目录重命名
+  shell: "if [ ! -d {{ ELFK_DIR }}/kibana ]; then mv {{ SOURCE_DIR }}/kibana-{{ KIBANA_VER }}-linux-x86_64/ {{ ELFK_DIR }}/kibana; fi"
+
+- name: 创建日志目录
+  file: name={{ item }} state=directory recurse=yes
+  with_items:
+  - "{{ ELFK_DIR }}/kibana/logs"
+
+- name: 拷贝配置文件
+  template: src=kibana.conf dest={{ SOURCE_DIR }} owner=root group=root
+
+- name: 配置kibana
+  shell: "if [ `grep 'server.port' kibana.yml |wc -l` -eq 1 ]; then cat {{ SOURCE_DIR }}/kibana.conf >> kibana.yml; fi"
+  args:
+    chdir: "{{ ELFK_DIR }}/kibana/config"
+  
+- name: 创建日志文件
+  file: name={{ item }} state=touch
+  with_items:
+  - "{{ ELFK_DIR }}/kibana/logs/kibana.log"
+
+- name: 拷贝服务配置文件
+  template: src=kibana dest=/etc/default/kibana owner=root group=root
+
+- name: 拷贝服务文件
+  template: src=kibana.service dest=/etc/systemd/system/kibana.service mode=0755 owner=root group=root
+
+- name: 修改属主属组
+  file: name={{ ELFK_DIR }}/kibana/ state=directory owner={{ ELFK_USER }} group={{ ELFK_USER }} recurse=yes
+
+- name: 启动kibana并开机启动
+  service:
+    name: kibana
+    state: started
+    enabled: yes

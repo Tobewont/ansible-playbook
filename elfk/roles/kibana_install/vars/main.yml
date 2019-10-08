@@ -1,0 +1,12 @@
+#定义kibana安装中的变量
+KIBANA_VER: 6.7.1
+KIBANA_PORT: 5601
+DOWNLOAD_URL: https://artifacts.elastic.co/downloads/kibana/kibana-{{ KIBANA_VER }}-linux-x86_64.tar.gz
+CH_URL: https://github.com/anbai-inc/Kibana_Hanization/archive/master.zip
+SOURCE_DIR: /software
+ELFK_USER: elk
+ELFK_DIR: /home/elfk
+ES_PORT: 9200
+ES1_IP: 192.168.30.128
+ES2_IP: 192.168.30.129
+ES3_IP: 192.168.30.130

@@ -1,0 +1,60 @@
+- name: 创建elk用户组
+  group: name={{ ELFK_USER }}  state=present
+
+- name: 创建elfk用户
+  user: name={{ ELFK_USER }}  group={{ ELFK_USER }}  state=present create_home=False shell=/sbin/nologin
+
+- name: 创建software目录
+  file: name={{ SOURCE_DIR }} state=directory recurse=yes
+
+- name: 创建elfk目录
+  file: name={{ ELFK_DIR }} state=directory recurse=yes
+  ignore_errors: yes
+
+#当前主机files目录下没有logstash包
+#- name: 下载logstash包
+#  get_url: url={{ DOWNLOAD_URL }} dest={{ SOURCE_DIR }}
+
+#当前主机files目录下已有logstash包
+- name: 拷贝现有logstash包到目标主机
+  copy: src=logstash-{{ LOGSTASH_VER }}.tar.gz dest={{ SOURCE_DIR }}
+
+- name: 解压logstash包
+  shell: "tar zxf logstash-{{ LOGSTASH_VER }}.tar.gz"
+  args:
+    chdir: "{{ SOURCE_DIR }}"
+    warn: False
+
+- name: 目录重命名
+  shell: "if [ ! -d {{ ELFK_DIR }}/logstash ]; then mv {{ SOURCE_DIR }}/logstash-{{ LOGSTASH_VER }}/ {{ ELFK_DIR }}/logstash; fi"
+  
+- name: 创建配置、日志目录
+  file: name={{ item }} state=directory recurse=yes
+  with_items:
+  - "{{ ELFK_DIR }}/logstash/conf.d"
+  - "{{ ELFK_DIR }}/logstash/run"
+  - "{{ ELFK_DIR }}/logstash/logs"
+
+- name: 创建pid、日志文件
+  file: name={{ item }} state=touch 
+  with_items:
+  - "{{ ELFK_DIR }}/logstash/run/logstash.pid"
+  - "{{ ELFK_DIR }}/logstash/logs/gc.log"
+
+- name: 配置logstash
+  template: src=logstash.conf dest={{ ELFK_DIR }}/logstash/conf.d/logstash.conf
+
+- name: 拷贝服务配置文件
+  template: src=logstash dest=/etc/default/logstash owner=root group=root
+
+- name: 拷贝服务文件
+  template: src=logstash.service dest=/etc/systemd/system/logstash.service mode=0755 owner=root group=root
+
+- name: 修改属主属组
+  file: name={{ ELFK_DIR }}/logstash/ state=directory owner={{ ELFK_USER }} group={{ ELFK_USER }} recurse=yes
+
+- name: 启动logstash并开机启动
+  service:
+    name: logstash
+    state: started
+    enabled: yes

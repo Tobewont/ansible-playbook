@@ -1,0 +1,4 @@
+#定义java安装中的变量
+JAVA_VER: 191
+SOURCE_DIR: /software
+JAVA_DIR: /usr/local/jdk

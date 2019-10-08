@@ -1,0 +1,9 @@
+#定义filebeat安装中的变量
+FILEBEAT_VER: 6.7.1
+DOWNLOAD_URL: https://artifacts.elastic.co/downloads/beats/filebeat/filebeat-{{ FILEBEAT_VER }}-linux-x86_64.tar.gz
+SOURCE_DIR: /software
+ELFK_DIR: /home/elfk
+LOGSTASH_PORT: 5050
+LOG1_IP: 192.168.30.131
+LOG2_IP: 192.168.30.132
+LOG3_IP: 192.168.30.133

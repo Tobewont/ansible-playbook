@@ -1,0 +1,11 @@
+- name: 安装常用软件包
+  yum:
+    name:
+      - openssl
+      - openssl-devel
+      - pcre 
+      - pcre-devel 
+      - zlib-devel
+      - gd-devel
+      - libxml2-devel
+    state: latest

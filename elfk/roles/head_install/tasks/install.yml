@@ -1,0 +1,83 @@
+#当前主机files目录下没有head包
+- name: 下载head包
+  get_url: url={{ HEAD_URL }} dest={{ SOURCE_DIR }} owner=root group=root
+
+#当前主机files目录下已有head包
+#- name: 拷贝现有head包到所有主机
+#  copy: src=elasticsearch-head-master.zip dest={{ SOURCE_DIR }} owner=root group=root
+
+- name: 拷贝脚本到所有主机
+  template: src=elasticsearch-head dest={{ SOURCE_DIR }} mode=0755 owner=root group=root
+
+- name: 解压node包
+  shell: "if [ ! -d elasticsearch-head-master/ ]; then unzip elasticsearch-head-master.zip; fi"
+  args:
+    chdir: "{{ SOURCE_DIR }}"
+    warn: False
+
+- name: 目录重命名
+  shell: "if [ ! -d {{ ELFK_DIR }}/head ]; then mv {{ SOURCE_DIR }}/elasticsearch-head-master/ {{ ELFK_DIR }}/head; fi"
+
+- name: 安装grunt 1
+  shell: npm install -g cnpm --registry=https://registry.npm.taobao.org
+  args:
+    chdir: "{{ ELFK_DIR }}/head"
+    
+- name: 安装grunt 2
+  shell: cnpm install -g grunt-cli
+  args:
+    chdir: "{{ ELFK_DIR }}/head"
+    
+- name: 安装grunt 3
+  shell: cnpm install -g grunt
+  args:
+    chdir: "{{ ELFK_DIR }}/head"
+    
+- name: 安装grunt 4
+  shell: cnpm install grunt-contrib-clean
+  args:
+    chdir: "{{ ELFK_DIR }}/head"
+    
+- name: 安装grunt 5
+  shell: cnpm install grunt-contrib-concat
+  args:
+    chdir: "{{ ELFK_DIR }}/head"
+    
+- name: 安装grunt 6
+  shell: cnpm install grunt-contrib-watch
+  args:
+    chdir: "{{ ELFK_DIR }}/head"
+    
+- name: 安装grunt 7
+  shell: cnpm install grunt-contrib-connect
+  args:
+    chdir: "{{ ELFK_DIR }}/head"
+    
+- name: 安装grunt 8
+  shell: cnpm install grunt-contrib-copy
+  args:
+    chdir: "{{ ELFK_DIR }}/head"
+
+- name: 安装grunt 9
+  shell: cnpm install grunt-contrib-jasmine
+  args:
+    chdir: "{{ ELFK_DIR }}/head"
+  ignore_errors: yes
+
+#上一步一般会报错，重复上一步安装
+- name: 安装grunt 10
+  shell: cnpm install grunt-contrib-jasmine
+  args:
+    chdir: "{{ ELFK_DIR }}/head"
+
+- name: 添加脚本elasticsearch-head
+  shell: "if [ ! -f /usr/bin/elasticsearch-head ]; then mv {{ SOURCE_DIR }}/elasticsearch-head /usr/bin/elasticsearch-head; fi"
+
+- name: 配置head
+  lineinfile:
+    dest: "{{ ELFK_DIR }}/head/Gruntfile.js"
+    insertbefore: "port: 9100,"
+    line: "                                        hostname: '0.0.0.0',"
+
+- name: 启动elasticsearch-head
+  shell: "if [ `netstat -lntp |grep 9100 | wc -l` -eq 0 ]; then source ~/.bashrc && /usr/bin/elasticsearch-head start; fi"

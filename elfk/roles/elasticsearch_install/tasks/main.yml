@@ -1,0 +1,2 @@
+#引用copy模块
+- include: copy.yml

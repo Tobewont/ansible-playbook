@@ -1,0 +1,32 @@
+---
+- hosts: elasticsearch
+  remote_user: root
+  gather_facts: True
+
+  roles:
+    - java_install
+    - elasticsearch_install
+    
+- hosts: logstash
+  remote_user: root
+  gather_facts: True
+
+  roles:
+    - java_install
+    - logstash_install
+
+- hosts: filebeat
+  remote_user: root
+  gather_facts: True
+
+  roles:
+    - filebeat_install
+
+- hosts: kibana
+  remote_user: root
+  gather_facts: True
+
+  roles:
+    - kibana_install
+    - head_install
+    - nginx_install

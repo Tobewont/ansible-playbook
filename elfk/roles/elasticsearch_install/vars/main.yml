@@ -1,0 +1,10 @@
+#定义elasticsearch安装中的变量
+ES_VER: 6.7.1
+DOWNLOAD_URL: https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-{{ ES_VER }}.tar.gz
+SOURCE_DIR: /software
+JAVA_DIR: /usr/local/jdk
+ELFK_USER: elk
+ELFK_DIR: /home/elfk
+ES_CLUSTER: elk
+ES_PORT: 9200
+TCP_PORT: 9300

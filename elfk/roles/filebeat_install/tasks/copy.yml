@@ -1,0 +1,72 @@
+- name: 创建software目录
+  file: name={{ SOURCE_DIR }} state=directory recurse=yes
+
+- name: 创建elfk目录
+  file: name={{ ELFK_DIR }} state=directory recurse=yes
+  ignore_errors: yes
+
+#当前主机files目录下没有filebeat包
+#- name: 下载filebeat包
+#  get_url: url={{ DOWNLOAD_URL }} dest={{ SOURCE_DIR }}
+
+#当前主机files目录下已有filebeat包
+- name: 拷贝现有filebeat包到目标主机
+  copy: src=filebeat-{{ FILEBEAT_VER }}-linux-x86_64.tar.gz dest={{ SOURCE_DIR }}
+
+- name: 解压filebeat包
+  shell: "tar zxf filebeat-{{ FILEBEAT_VER }}-linux-x86_64.tar.gz"
+  args:
+    chdir: "{{ SOURCE_DIR }}"
+    warn: False
+
+- name: 目录重命名
+  shell: "if [ ! -d {{ ELFK_DIR }}/filebeat ]; then mv {{ SOURCE_DIR }}/filebeat-{{ FILEBEAT_VER }}-linux-x86_64/ {{ ELFK_DIR }}/filebeat; fi"
+
+- name: 创建数据、日志目录
+  file: name={{ item }} state=directory
+  with_items:
+  - "{{ ELFK_DIR }}/filebeat/data"
+  - "{{ ELFK_DIR }}/filebeat/logs"
+
+- name: 配置filebeat1
+  lineinfile:
+    dest: "{{ ELFK_DIR }}/filebeat/filebeat.yml"
+    regexp: "  enabled: false"
+    insertbefore: "# Paths that should be crawled and fetched. Glob based paths."
+    line: "  enabled: true"
+    
+- name: 配置filebeat2
+  lineinfile:
+    dest: "{{ ELFK_DIR }}/filebeat/filebeat.yml"
+    regexp: "output.elasticsearch:"
+    insertbefore: "# Array of hosts to connect to."
+    line: "#output.elasticsearch:"
+
+- name: 配置filebeat3
+  lineinfile:
+    dest: "{{ ELFK_DIR }}/filebeat/filebeat.yml"
+    regexp: 'hosts: \["localhost:9200"\]'
+    insertbefore: "# Enabled ilm (beta) to use index lifecycle management instead daily indices."
+    line: '#hosts: ["localhost:9200"]'
+
+- name: 配置filebeat4
+  lineinfile:
+    dest: "{{ ELFK_DIR }}/filebeat/filebeat.yml"
+    regexp: "#output.logstash:"
+    insertbefore: "# The Logstash hosts"
+    line: "output.logstash:"
+
+- name: 配置filebeat5
+  lineinfile:
+    dest: "{{ ELFK_DIR }}/filebeat/filebeat.yml"
+    insertafter: "# The Logstash hosts"
+    line: '  hosts: ["{{ LOG1_IP }}:{{ LOGSTASH_PORT }}", "{{ LOG2_IP }}:{{ LOGSTASH_PORT }}", "{{ LOG2_IP }}:{{ LOGSTASH_PORT }}"]'
+
+- name: 拷贝服务文件
+  template: src=filebeat.service dest=/usr/lib/systemd/system/filebeat.service mode=0755 owner=root group=root
+
+- name: 启动filebeat并开机启动
+  service:
+    name: filebeat
+    state: started
+    enabled: yes

@@ -1,0 +1,20 @@
+[Unit]
+Description=logstash
+
+[Service]
+Type=simple
+User={{ ELFK_USER }}
+Group={{ ELFK_USER }}
+# Load env vars from /etc/default/ and /etc/sysconfig/ if they exist.
+# Prefixing the path with '-' makes it try to load, but if the file doesn't
+# exist, it continues onward.
+EnvironmentFile=-/etc/default/logstash
+EnvironmentFile=-/etc/sysconfig/logstash
+ExecStart={{ ELFK_DIR }}/logstash/bin/logstash "--path.settings" "{{ ELFK_DIR }}/logstash/config" "--path.config" "{{ ELFK_DIR }}/logstash/conf.d"
+Restart=always
+WorkingDirectory=/
+Nice=19
+LimitNOFILE=16384
+
+[Install]
+WantedBy=multi-user.target
