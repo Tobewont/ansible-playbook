@@ -1,0 +1,6 @@
+- name: manager离开集群
+  shell: "docker swarm leave -f"
+  ignore_errors: yes
+
+- name: 集群增加manager
+  script: /software/manager.sh

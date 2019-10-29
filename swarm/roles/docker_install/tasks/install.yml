@@ -1,0 +1,43 @@
+- name: 创建software目录
+  file: name=/software state=directory
+
+- name: 更改hostname
+  raw: "echo {{ hostname }} > /etc/hostname"
+
+- name: 更改生效
+  shell: "hostname {{ hostname }}"
+
+- name: 下载repo文件
+  shell: "if [ ! -f /usr/local/bin/docker-compose ]; then curl http://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo -o /etc/yum.repos.d/docker.repo; fi"
+
+- name: 生成缓存
+  shell: "yum makecache fast"
+  args:
+    warn: False
+
+- name: 安装docker-ce
+  yum: 
+    name: docker-ce
+    state: present
+
+- name: 启动docker并开机启动
+  service:
+    name: docker
+    state: started
+    enabled: yes
+    
+- name: 下载docker-compose
+  shell: "if [ ! -f /usr/local/bin/docker-compose ]; then curl -L https://github.com/docker/compose/releases/download/{{ COMPOSE_VER }}/docker-compose-$(uname -s)-$(uname -m) -o /usr/local/bin/docker-compose; fi"
+  
+- name: 给予执行权限
+  file: name=/usr/local/bin/docker-compose mode=0755
+  
+- name: 提高docker pull速度
+  shell: "curl -sSL https://get.daocloud.io/daotools/set_mirror.sh | sh -s http://f1361db2.m.daocloud.io"
+  args:
+    warn: False
+
+- name: 重启docker
+  service:
+    name: docker
+    state: restarted

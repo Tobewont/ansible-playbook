@@ -1,0 +1,15 @@
+- name: 下载scope
+  shell: "if [ ! -f /usr/local/bin/scope ]; then curl -L git.io/scope -o /usr/local/bin/scope; fi"
+  
+- name: 给予执行权限
+  file: name=/usr/local/bin/scope mode=0755
+
+- name: 停止scope容器
+  shell: "docker stop weavescope && docker rm weavescope"
+  ignore_errors: yes
+
+- name: 启动scope容器
+  shell: "hosts=`cat /software/hosts.txt`; scope launch $hosts"
+  register: scope_url
+
+- debug: msg="{{ scope_url.stdout }}"

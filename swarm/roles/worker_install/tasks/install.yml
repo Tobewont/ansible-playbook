@@ -1,0 +1,6 @@
+- name: worker离开集群
+  shell: "docker swarm leave -f"
+  ignore_errors: yes
+  
+- name: 集群增加worker
+  script: /software/worker.sh

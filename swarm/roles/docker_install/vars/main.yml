@@ -1,0 +1,2 @@
+#定义docker安装中的变量
+COMPOSE_VER: 1.24.1

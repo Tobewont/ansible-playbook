@@ -1,0 +1,35 @@
+---
+- hosts: all
+  remote_user: root
+  gather_facts: True
+
+  roles:
+    - docker_install
+
+- hosts: manager
+  remote_user: root
+  gather_facts: True
+
+  roles:
+    - init_install
+
+- hosts: add_manager
+  remote_user: root
+  gather_facts: True
+
+  roles:
+    - manager_install
+
+- hosts: add_worker
+  remote_user: root
+  gather_facts: True
+
+  roles:
+    - worker_install
+
+- hosts: all
+  remote_user: root
+  gather_facts: True
+
+  roles:
+    - scope_install

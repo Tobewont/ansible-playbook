@@ -1,0 +1,30 @@
+- name: manager离开集群
+  shell: "docker swarm leave -f"
+  ignore_errors: yes
+
+- name: 初始化swarm集群
+  shell: "docker swarm init --advertise-addr {{ ansible_ssh_host }}"
+  
+- name: 获取manager的token
+  shell: "echo `docker swarm join-token manager |grep docker` > /software/manager.sh"
+  
+- name: 获取worker的token
+  shell: "echo `docker swarm join-token worker |grep docker` > /software/worker.sh"
+
+- name: 获取所有ip
+  shell: "echo `ansible all -m setup -a 'filter='ansible_default_ipv4'' |grep 'address' |grep -v 'macaddress' |awk -F '\"' '{print $4}'` > /software/hosts.txt"
+ 
+- name: 拷贝manager.sh
+  shell: "ansible all -m copy -a 'src=/software/manager.sh dest=/software mode=0755'"
+  args:
+    warn: False
+    
+- name: 拷贝worker.sh
+  shell: "ansible all -m copy -a 'src=/software/worker.sh dest=/software mode=0755'"
+  args:
+    warn: False
+
+- name: 拷贝hosts.txt
+  shell: "ansible all -m copy -a 'src=/software/hosts.txt dest=/software'"
+  args:
+    warn: False
