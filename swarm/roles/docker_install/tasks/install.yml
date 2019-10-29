@@ -8,7 +8,7 @@
   shell: "hostname {{ hostname }}"
 
 - name: 下载repo文件
-  shell: "if [ ! -f /usr/local/bin/docker-compose ]; then curl http://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo -o /etc/yum.repos.d/docker.repo; fi"
+  shell: "if [ ! -f /etc/yum.repos.d/docker.repo ]; then curl http://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo -o /etc/yum.repos.d/docker.repo; fi"
 
 - name: 生成缓存
   shell: "yum makecache fast"
