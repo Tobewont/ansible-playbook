@@ -1,0 +1,48 @@
+- name: 安装keepalived
+  yum: name=keepalived state=present
+
+- name: 拷贝keepalived配置文件
+  template: src=keepalived-backup.conf dest=/etc/keepalived/keepalived.conf
+  
+- name: 拷贝keepalived检查脚本
+  template: src=check-apiserver.sh dest=/etc/keepalived/check-apiserver.sh mode=0755
+
+- name: 启动keepalived并开机启动
+  service:
+    name: keepalived
+    state: started
+    enabled: yes
+
+- name: 集群初始化准备1
+  shell: "swapoff -a && kubeadm reset -f"
+
+- name: 集群初始化准备2
+  shell: "systemctl daemon-reload && systemctl restart kubelet"
+  
+- name: 集群初始化准备3
+  shell: "iptables -F && iptables -t nat -F && iptables -t mangle -F && iptables -X"
+  
+- name: 集群增加master
+  script: "{{ SOURCE_DIR }}/master.sh"
+  
+- name: 创建 $HOME/.kube 目录
+  file: name=$HOME/.kube state=directory
+  
+- name: 拷贝KubeConfig
+  copy: src=/etc/kubernetes/admin.conf dest=$HOME/.kube/config owner=root group=root
+
+- name: kubectl命令补全1
+  shell: "kubectl completion bash > $HOME/.kube/completion.bash.inc"
+ 
+- name: kubectl命令补全2
+  shell: "if [ `grep 'source $HOME/.kube/completion.bash.inc' $HOME/.bash_profile |wc -l` -eq 0 ]; then echo 'source $HOME/.kube/completion.bash.inc' >> $HOME/.bash_profile; fi"
+  
+- name: 生效配置
+  shell: "source $HOME/.bash_profile"
+  ignore_errors: yes
+  
+- name: 删除master的token
+  file: name={{ SOURCE_DIR }}/master.sh state=absent
+
+- name: 删除node的token
+  file: name={{ SOURCE_DIR }}/node.sh state=absent

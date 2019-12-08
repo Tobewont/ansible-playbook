@@ -1,0 +1,64 @@
+- name: 安装keepalived
+  yum: name=keepalived state=present
+
+- name: 拷贝keepalived配置文件
+  template: src=keepalived-master.conf dest=/etc/keepalived/keepalived.conf
+  
+- name: 拷贝keepalived检查脚本
+  template: src=check-apiserver.sh dest=/etc/keepalived/check-apiserver.sh mode=0755
+
+- name: 启动keepalived并开机启动
+  service:
+    name: keepalived
+    state: started
+    enabled: yes
+
+- name: 拷贝kubeadm配置文件
+  template: src=kubeadm-config.yaml dest={{ SOURCE_DIR }}
+
+- name: 集群初始化准备1
+  shell: "swapoff -a && kubeadm reset -f"
+
+- name: 集群初始化准备2
+  shell: "systemctl daemon-reload && systemctl restart kubelet"
+  
+- name: 集群初始化准备3
+  shell: "iptables -F && iptables -t nat -F && iptables -t mangle -F && iptables -X"
+
+- name: 拉取kube-scheduler镜像
+  shell: "docker pull registry.cn-hangzhou.aliyuncs.com/imooc/kube-scheduler:{{ VERSION }}"
+
+- name: 集群初始化
+  shell: "kubeadm init --config={{ SOURCE_DIR }}/kubeadm-config.yaml --experimental-upload-certs &>{{ SOURCE_DIR }}/token.txt"
+
+- name: 获取master的token
+  shell: "grep -B2 'experimental-control-plane' {{ SOURCE_DIR }}/token.txt > {{ SOURCE_DIR }}/master.sh"
+
+- name: 获取node的token
+  shell: "grep -A1 'kubeadm join' {{ SOURCE_DIR }}/token.txt |tail -2 > {{ SOURCE_DIR }}/node.sh"
+
+- name: 分发master.sh
+  shell: "ansible all -m copy -a 'src={{ SOURCE_DIR }}/master.sh dest={{ SOURCE_DIR }} mode=0755'"
+  args:
+    warn: False
+    
+- name: 分发node.sh
+  shell: "ansible all -m copy -a 'src={{ SOURCE_DIR }}/node.sh dest={{ SOURCE_DIR }} mode=0755'"
+  args:
+    warn: False
+
+- name: 创建 $HOME/.kube 目录
+  file: name=$HOME/.kube state=directory
+  
+- name: 拷贝KubeConfig
+  copy: src=/etc/kubernetes/admin.conf dest=$HOME/.kube/config owner=root group=root
+
+- name: kubectl命令补全1
+  shell: "kubectl completion bash > $HOME/.kube/completion.bash.inc"
+ 
+- name: kubectl命令补全2
+  shell: "if [ `grep 'source $HOME/.kube/completion.bash.inc' $HOME/.bash_profile |wc -l` -eq 0 ]; then echo 'source $HOME/.kube/completion.bash.inc' >> $HOME/.bash_profile; fi"
+  
+- name: 生效配置
+  shell: "source $HOME/.bash_profile"
+  ignore_errors: yes

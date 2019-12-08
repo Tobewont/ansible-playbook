@@ -1,0 +1,17 @@
+- name: 集群初始化准备1
+  shell: "swapoff -a && kubeadm reset -f"
+
+- name: 集群初始化准备2
+  shell: "systemctl daemon-reload && systemctl restart kubelet"
+  
+- name: 集群初始化准备3
+  shell: "iptables -F && iptables -t nat -F && iptables -t mangle -F && iptables -X"
+  
+- name: 集群增加node
+  script: "{{ SOURCE_DIR }}/node.sh"
+
+- name: 删除master的token
+  file: name={{ SOURCE_DIR }}/master.sh state=absent
+
+- name: 删除node的token
+  file: name={{ SOURCE_DIR }}/node.sh state=absent

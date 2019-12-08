@@ -1,0 +1,3 @@
+#定义docker安装中的变量
+SOURCE_DIR: /software
+VERSION: 1.14.0-0

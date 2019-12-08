@@ -1,0 +1,21 @@
+- name: 拷贝dashboard-all.yaml
+  template: src=dashboard-all.yaml dest=/etc/kubernetes/addons
+  
+- name: 拉取dashboard镜像
+  shell: "ansible all -m shell -a 'docker pull registry.cn-hangzhou.aliyuncs.com/imooc/kubernetes-dashboard-amd64:v1.8.3'"
+
+- name: 部署dashboard
+  shell: "kubectl apply -f /etc/kubernetes/addons/dashboard-all.yaml"
+  
+- name: 创建ServiceaAccount
+  shell: "kubectl create sa dashboard-admin -n kube-system"
+
+- name: 权限绑定
+  shell: "kubectl create clusterrolebinding dashboard-admin --clusterrole=cluster-admin --serviceaccount=kube-system:dashboard-admin"
+
+- name: 获取登录token
+  shell: "ADMIN_SECRET=$(kubectl get secrets -n kube-system | grep dashboard-admin | awk '{print $1}'); kubectl describe secret -n kube-system ${ADMIN_SECRET} | grep -E '^token' | awk '{print $2}' > {{ SOURCE_DIR }}/token.txt"
+  register: token
+
+- name: 显示token位置
+  debug: var=token.cmd verbosity=0

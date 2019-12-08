@@ -1,0 +1,58 @@
+- name: 关闭firewalld 
+  service: name=firewalld state=stopped enabled=no
+  
+- name: 临时关闭 selinux
+  shell: "setenforce 0"
+  failed_when: false
+
+- name: 永久关闭 selinux
+  lineinfile:
+    dest: /etc/selinux/config
+    regexp: "^SELINUX="
+    line: "SELINUX=disabled"
+
+- name: 添加EPEL仓库
+  yum: name=epel-release state=latest
+
+- name: 安装常用软件包
+  yum:
+    name:
+      - vim
+      - lrzsz
+      - net-tools
+      - wget
+      - curl
+      - bash-completion
+      - rsync
+      - gcc
+      - unzip
+      - git
+      - iptables
+      - conntrack
+      - ipvsadm
+      - ipset
+      - jq
+      - sysstat
+      - libseccomp
+    state: latest
+
+- name: 更新系统
+  shell: "yum update -y --exclude kubeadm,kubelet,kubectl"
+  ignore_errors: yes
+  args:
+    warn: False
+    
+- name: 配置iptables
+  shell: "iptables -F && iptables -X && iptables -F -t nat && iptables -X -t nat && iptables -P FORWARD ACCEPT"
+
+- name: 关闭swap
+  shell: "swapoff -a && sed -i '/swap/s/^\\(.*\\)$/#\\1/g' /etc/fstab"
+  
+- name: 系统配置
+  template: src=kubernetes.conf dest=/etc/sysctl.d/kubernetes.conf
+
+- name: 加载br_netfilter
+  shell: "modprobe br_netfilter"
+
+- name: 生效配置
+  shell: "sysctl -p /etc/sysctl.d/kubernetes.conf"

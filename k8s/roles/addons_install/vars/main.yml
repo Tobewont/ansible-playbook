@@ -1,0 +1,6 @@
+#定义k8s集群插件安装中的变量
+
+#Pod网段
+POD_CIDR: 172.10.0.0/16
+
+SOURCE_DIR: /software
