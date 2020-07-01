@@ -15,19 +15,19 @@
   yum: name=epel-release state=latest
 
 - name: 安装常用软件包
-    yum:
-      name:
-        - vim
-        - lrzsz
-        - net-tools
-        - wget
-        - curl
-        - bash-completion
-        - rsync
-        - gcc
-        - unzip
-        - git
-      state: latest
+  yum:
+    name:
+      - vim
+      - lrzsz
+      - net-tools
+      - wget
+      - curl
+      - bash-completion
+      - rsync
+      - gcc
+      - unzip
+      - git
+    state: latest
 
 - name: 更新系统
   shell: "yum update -y"
