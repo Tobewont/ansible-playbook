@@ -39,7 +39,12 @@
     
 - name: 配置kubernetes源
   template: src=kubernetes.repo dest=/etc/yum.repos.d/kubernetes.repo
-  
+ 
+- name: 安装kubernetes-cni
+  yum: 
+    name: kubernetes-cni
+    state: latest
+    
 - name: 安装kubeadm、kubelet、kubectl
   shell: "yum install -y kubeadm-{{ VERSION }} kubelet-{{ VERSION }} kubectl-{{ VERSION }} --disableexcludes=kubernetes"
   args:
