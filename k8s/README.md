@@ -1,1 +1,1 @@
-通过ansible-playbook，批量部署K8S集群
+通过ansible-playbook，以Kubeadm方式部署高可用K8S集群
