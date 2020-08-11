@@ -1,4 +1,7 @@
-通过ansible-playbook，以Kubeadm方式部署K8S集群（一主多从）
+通过ansible-playbook，以Kubeadm方式部署K8S集群（一主多从）。
+
+
+> 不建议在生产环境部署
 
 部署完成，
 
