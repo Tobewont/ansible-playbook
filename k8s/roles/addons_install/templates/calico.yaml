@@ -1,160 +1,1689 @@
-# Calico Version v3.1.3
-# https://docs.projectcalico.org/v3.1/releases#v3.1.3
-# This manifest includes the following component versions:
-#   calico/node:v3.1.3
-#   calico/cni:v3.1.3
-
-# This ConfigMap is used to configure a self-hosted Calico installation.
-kind: ConfigMap
 apiVersion: v1
+kind: ConfigMap
 metadata:
   name: calico-config
   namespace: kube-system
 data:
-  # To enable Typha, set this to "calico-typha" *and* set a non-zero value for Typha replicas
-  # below.  We recommend using Typha if you have more than 50 nodes. Above 100 nodes it is
-  # essential.
-  typha_service_name: "calico-typha"
-
-  # The CNI network configuration to install on each node.
+  typha_service_name: "none"
+  calico_backend: "bird"
+  veth_mtu: "1440"
   cni_network_config: |-
     {
       "name": "k8s-pod-network",
-      "cniVersion": "0.3.0",
+      "cniVersion": "0.3.1",
       "plugins": [
         {
           "type": "calico",
           "log_level": "info",
           "datastore_type": "kubernetes",
           "nodename": "__KUBERNETES_NODE_NAME__",
-          "mtu": 1500,
+          "mtu": __CNI_MTU__,
           "ipam": {
-            "type": "host-local",
-            "subnet": "usePodCidr"
+              "type": "calico-ipam"
           },
           "policy": {
-            "type": "k8s"
+              "type": "k8s"
           },
           "kubernetes": {
-            "kubeconfig": "__KUBECONFIG_FILEPATH__"
+              "kubeconfig": "__KUBECONFIG_FILEPATH__"
           }
         },
         {
           "type": "portmap",
           "snat": true,
           "capabilities": {"portMappings": true}
+        },
+        {
+          "type": "bandwidth",
+          "capabilities": {"bandwidth": true}
         }
       ]
     }
-
+    
 ---
-
-# This manifest creates a Service, which will be backed by Calico's Typha daemon.
-# Typha sits in between Felix and the API server, reducing Calico's load on the API server.
-
-apiVersion: v1
-kind: Service
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
 metadata:
-  name: calico-typha
-  namespace: kube-system
-  labels:
-    k8s-app: calico-typha
+  name: bgpconfigurations.crd.projectcalico.org
 spec:
-  ports:
-    - port: 5473
-      protocol: TCP
-      targetPort: calico-typha
-      name: calico-typha
-  selector:
-    k8s-app: calico-typha
+  group: crd.projectcalico.org
+  names:
+    kind: BGPConfiguration
+    listKind: BGPConfigurationList
+    plural: bgpconfigurations
+    singular: bgpconfiguration
+  scope: Cluster
+  versions:
+  - name: v1
+    schema:
+      openAPIV3Schema:
+        properties:
+          apiVersion:
+            type: string
+          kind:
+            type: string
+          metadata:
+            type: object
+          spec:
+            properties:
+              asNumber:
+                format: int32
+                type: integer
+              logSeverityScreen:
+                type: string
+              nodeToNodeMeshEnabled:
+                type: boolean
+              serviceClusterIPs:
+                items:
+                  properties:
+                    cidr:
+                      type: string
+                  type: object
+                type: array
+              serviceExternalIPs:
+                items:
+                  properties:
+                    cidr:
+                      type: string
+                  type: object
+                type: array
+            type: object
+        type: object
+    served: true
+    storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
 
 ---
-
-# This manifest creates a Deployment of Typha to back the above service.
-
-apiVersion: apps/v1beta1
-kind: Deployment
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
 metadata:
-  name: calico-typha
-  namespace: kube-system
-  labels:
-    k8s-app: calico-typha
+  name: bgppeers.crd.projectcalico.org
 spec:
-  # Number of Typha replicas.  To enable Typha, set this to a non-zero value *and* set the
-  # typha_service_name variable in the calico-config ConfigMap above.
-  #
-  # We recommend using Typha if you have more than 50 nodes.  Above 100 nodes it is essential
-  # (when using the Kubernetes datastore).  Use one replica for every 100-200 nodes.  In
-  # production, we recommend running at least 3 replicas to reduce the impact of rolling upgrade.
-  replicas: 1
-  revisionHistoryLimit: 2
-  template:
-    metadata:
-      labels:
-        k8s-app: calico-typha
-      annotations:
-        # This, along with the CriticalAddonsOnly toleration below, marks the pod as a critical
-        # add-on, ensuring it gets priority scheduling and that its resources are reserved
-        # if it ever gets evicted.
-        scheduler.alpha.kubernetes.io/critical-pod: ''
-    spec:
-      hostNetwork: true
-      tolerations:
-        # Mark the pod as a critical add-on for rescheduling.
-        - key: CriticalAddonsOnly
-          operator: Exists
-      # Since Calico can't network a pod until Typha is up, we need to run Typha itself
-      # as a host-networked pod.
-      serviceAccountName: calico-node
-      containers:
-      - image: quay.io/calico/typha:v0.7.4
-        name: calico-typha
-        ports:
-        - containerPort: 5473
-          name: calico-typha
-          protocol: TCP
-        env:
-          # Enable "info" logging by default.  Can be set to "debug" to increase verbosity.
-          - name: TYPHA_LOGSEVERITYSCREEN
-            value: "info"
-          # Disable logging to file and syslog since those don't make sense in Kubernetes.
-          - name: TYPHA_LOGFILEPATH
-            value: "none"
-          - name: TYPHA_LOGSEVERITYSYS
-            value: "none"
-          # Monitor the Kubernetes API to find the number of running instances and rebalance
-          # connections.
-          - name: TYPHA_CONNECTIONREBALANCINGMODE
-            value: "kubernetes"
-          - name: TYPHA_DATASTORETYPE
-            value: "kubernetes"
-          - name: TYPHA_HEALTHENABLED
-            value: "true"
-          # Uncomment these lines to enable prometheus metrics.  Since Typha is host-networked,
-          # this opens a port on the host, which may need to be secured.
-          #- name: TYPHA_PROMETHEUSMETRICSENABLED
-          #  value: "true"
-          #- name: TYPHA_PROMETHEUSMETRICSPORT
-          #  value: "9093"
-        livenessProbe:
-          httpGet:
-            path: /liveness
-            port: 9098
-          periodSeconds: 30
-          initialDelaySeconds: 30
-        readinessProbe:
-          httpGet:
-            path: /readiness
-            port: 9098
-          periodSeconds: 10
+  group: crd.projectcalico.org
+  names:
+    kind: BGPPeer
+    listKind: BGPPeerList
+    plural: bgppeers
+    singular: bgppeer
+  scope: Cluster
+  versions:
+  - name: v1
+    schema:
+      openAPIV3Schema:
+        properties:
+          apiVersion:
+            type: string
+          kind:
+            type: string
+          metadata:
+            type: object
+          spec:
+            properties:
+              asNumber:
+                format: int32
+                type: integer
+              node:
+                type: string
+              nodeSelector:
+                type: string
+              peerIP:
+                type: string
+              peerSelector:
+                type: string
+            required:
+            - asNumber
+            - peerIP
+            type: object
+        type: object
+    served: true
+    storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
 
 ---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: blockaffinities.crd.projectcalico.org
+spec:
+  group: crd.projectcalico.org
+  names:
+    kind: BlockAffinity
+    listKind: BlockAffinityList
+    plural: blockaffinities
+    singular: blockaffinity
+  scope: Cluster
+  versions:
+  - name: v1
+    schema:
+      openAPIV3Schema:
+        properties:
+          apiVersion:
+            type: string
+          kind:
+            type: string
+          metadata:
+            type: object
+          spec:
+            properties:
+              cidr:
+                type: string
+              deleted:
+                type: string
+              node:
+                type: string
+              state:
+                type: string
+            required:
+            - cidr
+            - deleted
+            - node
+            - state
+            type: object
+        type: object
+    served: true
+    storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
+  
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: clusterinformations.crd.projectcalico.org
+spec:
+  group: crd.projectcalico.org
+  names:
+    kind: ClusterInformation
+    listKind: ClusterInformationList
+    plural: clusterinformations
+    singular: clusterinformation
+  scope: Cluster
+  versions:
+  - name: v1
+    schema:
+      openAPIV3Schema:
+        properties:
+          apiVersion:
+            type: string
+          kind:
+            type: string
+          metadata:
+            type: object
+          spec:
+            properties:
+              calicoVersion:
+                type: string
+              clusterGUID:
+                type: string
+              clusterType:
+                type: string
+              datastoreReady:
+                type: boolean
+              variant:
+                type: string
+            type: object
+        type: object
+    served: true
+    storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
 
-# This manifest installs the calico/node container, as well
-# as the Calico CNI plugins and network config on
-# each master and worker node in a Kubernetes cluster.
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: felixconfigurations.crd.projectcalico.org
+spec:
+  group: crd.projectcalico.org
+  names:
+    kind: FelixConfiguration
+    listKind: FelixConfigurationList
+    plural: felixconfigurations
+    singular: felixconfiguration
+  scope: Cluster
+  versions:
+  - name: v1
+    schema:
+      openAPIV3Schema:
+        properties:
+          apiVersion:
+            type: string
+          kind:
+            type: string
+          metadata:
+            type: object
+          spec:
+            properties:
+              bpfConnectTimeLoadBalancingEnabled:
+                type: boolean
+              bpfDataIfacePattern:
+                type: string
+              bpfDisableUnprivileged:
+                type: boolean
+              bpfEnabled:
+                type: boolean
+              bpfExternalServiceMode:
+                type: string
+              bpfKubeProxyEndpointSlicesEnabled:
+                type: boolean
+              bpfKubeProxyIptablesCleanupEnabled:
+                type: boolean
+              bpfKubeProxyMinSyncPeriod:
+                type: string
+              bpfLogLevel:
+                type: string
+              chainInsertMode:
+                type: string
+              dataplaneDriver:
+                type: string
+              debugDisableLogDropping:
+                type: boolean
+              debugMemoryProfilePath:
+                type: string
+              debugSimulateCalcGraphHangAfter:
+                type: string
+              debugSimulateDataplaneHangAfter:
+                type: string
+              defaultEndpointToHostAction:
+                type: string
+              deviceRouteProtocol:
+                type: integer
+              deviceRouteSourceAddress:
+                type: string
+              disableConntrackInvalidCheck:
+                type: boolean
+              endpointReportingDelay:
+                type: string
+              endpointReportingEnabled:
+                type: boolean
+              externalNodesList:
+                items:
+                  type: string
+                type: array
+              failsafeInboundHostPorts:
+                items:
+                  properties:
+                    port:
+                      type: integer
+                    protocol:
+                      type: string
+                  required:
+                  - port
+                  - protocol
+                  type: object
+                type: array
+              failsafeOutboundHostPorts:
+                items:
+                  properties:
+                    port:
+                      type: integer
+                    protocol:
+                      type: string
+                  required:
+                  - port
+                  - protocol
+                  type: object
+                type: array
+              genericXDPEnabled:
+                type: boolean
+              healthEnabled:
+                type: boolean
+              healthHost:
+                type: string
+              healthPort:
+                type: integer
+              interfaceExclude:
+                type: string
+              interfacePrefix:
+                type: string
+              ipipEnabled:
+                type: boolean
+              ipipMTU:
+                type: integer
+              ipsetsRefreshInterval:
+                type: string
+              iptablesBackend:
+                type: string
+              iptablesFilterAllowAction:
+                type: string
+              iptablesLockFilePath:
+                type: string
+              iptablesLockProbeInterval:
+                type: string
+              iptablesLockTimeout:
+                type: string
+              iptablesMangleAllowAction:
+                type: string
+              iptablesMarkMask:
+                format: int32
+                type: integer
+              iptablesNATOutgoingInterfaceFilter:
+                type: string
+              iptablesPostWriteCheckInterval:
+                type: string
+              iptablesRefreshInterval:
+                type: string
+              ipv6Support:
+                type: boolean
+              kubeNodePortRanges:
+                items:
+                  anyOf:
+                  - type: integer
+                  - type: string
+                  pattern: ^.*
+                  x-kubernetes-int-or-string: true
+                type: array
+              logFilePath:
+                type: string
+              logPrefix:
+                type: string
+              logSeverityFile:
+                type: string
+              logSeverityScreen:
+                type: string
+              logSeveritySys:
+                type: string
+              maxIpsetSize:
+                type: integer
+              metadataAddr:
+                type: string
+              metadataPort:
+                type: integer
+              natOutgoingAddress:
+                type: string
+              natPortRange:
+                anyOf:
+                - type: integer
+                - type: string
+                pattern: ^.*
+                x-kubernetes-int-or-string: true
+              netlinkTimeout:
+                type: string
+              openstackRegion:
+                type: string
+              policySyncPathPrefix:
+                type: string
+              prometheusGoMetricsEnabled:
+                type: boolean
+              prometheusMetricsEnabled:
+                type: boolean
+              prometheusMetricsHost:
+                type: string
+              prometheusMetricsPort:
+                type: integer
+              prometheusProcessMetricsEnabled:
+                type: boolean
+              removeExternalRoutes:
+                type: boolean
+              reportingInterval:
+                type: string
+              reportingTTL:
+                type: string
+              routeRefreshInterval:
+                type: string
+              routeSource:
+                type: string
+              routeTableRange:
+                properties:
+                  max:
+                    type: integer
+                  min:
+                    type: integer
+                required:
+                - max
+                - min
+                type: object
+              sidecarAccelerationEnabled:
+                type: boolean
+              usageReportingEnabled:
+                type: boolean
+              usageReportingInitialDelay:
+                type: string
+              usageReportingInterval:
+                type: string
+              useInternalDataplaneDriver:
+                type: boolean
+              vxlanEnabled:
+                type: boolean
+              vxlanMTU:
+                type: integer
+              vxlanPort:
+                type: integer
+              vxlanVNI:
+                type: integer
+              wireguardEnabled:
+                type: boolean
+              wireguardInterfaceName:
+                type: string
+              wireguardListeningPort:
+                type: integer
+              wireguardMTU:
+                type: integer
+              wireguardRoutingRulePriority:
+                type: integer
+              xdpEnabled:
+                type: boolean
+              xdpRefreshInterval:
+                type: string
+            required:
+            - bpfLogLevel
+            type: object
+        type: object
+    served: true
+    storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
+
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: globalnetworkpolicies.crd.projectcalico.org
+spec:
+  group: crd.projectcalico.org
+  names:
+    kind: GlobalNetworkPolicy
+    listKind: GlobalNetworkPolicyList
+    plural: globalnetworkpolicies
+    singular: globalnetworkpolicy
+  scope: Cluster
+  versions:
+  - name: v1
+    schema:
+      openAPIV3Schema:
+        properties:
+          apiVersion:
+            type: string
+          kind:
+            type: string
+          metadata:
+            type: object
+          spec:
+            properties:
+              applyOnForward:
+                type: boolean
+              doNotTrack:
+                type: boolean
+              egress:
+                items:
+                  properties:
+                    action:
+                      type: string
+                    destination:
+                      properties:
+                        namespaceSelector:
+                          type: string
+                        nets:
+                          items:
+                            type: string
+                          type: array
+                        notNets:
+                          items:
+                            type: string
+                          type: array
+                        notPorts:
+                          items:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            pattern: ^.*
+                            x-kubernetes-int-or-string: true
+                          type: array
+                        notSelector:
+                          type: string
+                        ports:
+                          items:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            pattern: ^.*
+                            x-kubernetes-int-or-string: true
+                          type: array
+                        selector:
+                          type: string
+                        serviceAccounts:
+                          properties:
+                            names:
+                              items:
+                                type: string
+                              type: array
+                            selector:
+                              type: string
+                          type: object
+                      type: object
+                    http:
+                      properties:
+                        methods:
+                          items:
+                            type: string
+                          type: array
+                        paths:
+                          items:
+                            properties:
+                              exact:
+                                type: string
+                              prefix:
+                                type: string
+                            type: object
+                          type: array
+                      type: object
+                    icmp:
+                      properties:
+                        code:
+                          type: integer
+                        type:
+                          type: integer
+                      type: object
+                    ipVersion:
+                      type: integer
+                    metadata:
+                      properties:
+                        annotations:
+                          additionalProperties:
+                            type: string
+                          type: object
+                      type: object
+                    notICMP:
+                      properties:
+                        code:
+                          type: integer
+                        type:
+                          type: integer
+                      type: object
+                    notProtocol:
+                      anyOf:
+                      - type: integer
+                      - type: string
+                      pattern: ^.*
+                      x-kubernetes-int-or-string: true
+                    protocol:
+                      anyOf:
+                      - type: integer
+                      - type: string
+                      pattern: ^.*
+                      x-kubernetes-int-or-string: true
+                    source:
+                      properties:
+                        namespaceSelector:
+                          type: string
+                        nets:
+                          items:
+                            type: string
+                          type: array
+                        notNets:
+                          items:
+                            type: string
+                          type: array
+                        notPorts:
+                          items:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            pattern: ^.*
+                            x-kubernetes-int-or-string: true
+                          type: array
+                        notSelector:
+                          type: string
+                        ports:
+                          items:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            pattern: ^.*
+                            x-kubernetes-int-or-string: true
+                          type: array
+                        selector:
+                          type: string
+                        serviceAccounts:
+                          properties:
+                            names:
+                              items:
+                                type: string
+                              type: array
+                            selector:
+                              type: string
+                          type: object
+                      type: object
+                  required:
+                  - action
+                  type: object
+                type: array
+              ingress:
+                items:
+                  properties:
+                    action:
+                      type: string
+                    destination:
+                      properties:
+                        namespaceSelector:
+                          type: string
+                        nets:
+                          items:
+                            type: string
+                          type: array
+                        notNets:
+                          items:
+                            type: string
+                          type: array
+                        notPorts:
+                          items:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            pattern: ^.*
+                            x-kubernetes-int-or-string: true
+                          type: array
+                        notSelector:
+                          type: string
+                        ports:
+                          items:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            pattern: ^.*
+                            x-kubernetes-int-or-string: true
+                          type: array
+                        selector:
+                          type: string
+                        serviceAccounts:
+                          properties:
+                            names:
+                              items:
+                                type: string
+                              type: array
+                            selector:
+                              type: string
+                          type: object
+                      type: object
+                    http:
+                      properties:
+                        methods:
+                          items:
+                            type: string
+                          type: array
+                        paths:
+                          items:
+                            properties:
+                              exact:
+                                type: string
+                              prefix:
+                                type: string
+                            type: object
+                          type: array
+                      type: object
+                    icmp:
+                      properties:
+                        code:
+                          type: integer
+                        type:
+                          type: integer
+                      type: object
+                    ipVersion:
+                      type: integer
+                    metadata:
+                      properties:
+                        annotations:
+                          additionalProperties:
+                            type: string
+                          type: object
+                      type: object
+                    notICMP:
+                      properties:
+                        code:
+                          type: integer
+                        type:
+                          type: integer
+                      type: object
+                    notProtocol:
+                      anyOf:
+                      - type: integer
+                      - type: string
+                      pattern: ^.*
+                      x-kubernetes-int-or-string: true
+                    protocol:
+                      anyOf:
+                      - type: integer
+                      - type: string
+                      pattern: ^.*
+                      x-kubernetes-int-or-string: true
+                    source:
+                      properties:
+                        namespaceSelector:
+                          type: string
+                        nets:
+                          items:
+                            type: string
+                          type: array
+                        notNets:
+                          items:
+                            type: string
+                          type: array
+                        notPorts:
+                          items:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            pattern: ^.*
+                            x-kubernetes-int-or-string: true
+                          type: array
+                        notSelector:
+                          type: string
+                        ports:
+                          items:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            pattern: ^.*
+                            x-kubernetes-int-or-string: true
+                          type: array
+                        selector:
+                          type: string
+                        serviceAccounts:
+                          properties:
+                            names:
+                              items:
+                                type: string
+                              type: array
+                            selector:
+                              type: string
+                          type: object
+                      type: object
+                  required:
+                  - action
+                  type: object
+                type: array
+              namespaceSelector:
+                type: string
+              order:
+                type: number
+              preDNAT:
+                type: boolean
+              selector:
+                type: string
+              serviceAccountSelector:
+                type: string
+              types:
+                items:
+                  type: string
+                type: array
+            type: object
+        type: object
+    served: true
+    storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
+
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: globalnetworksets.crd.projectcalico.org
+spec:
+  group: crd.projectcalico.org
+  names:
+    kind: GlobalNetworkSet
+    listKind: GlobalNetworkSetList
+    plural: globalnetworksets
+    singular: globalnetworkset
+  scope: Cluster
+  versions:
+  - name: v1
+    schema:
+      openAPIV3Schema:
+        properties:
+          apiVersion:
+            type: string
+          kind:
+            type: string
+          metadata:
+            type: object
+          spec:
+            properties:
+              nets:
+                items:
+                  type: string
+                type: array
+            type: object
+        type: object
+    served: true
+    storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
+
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: hostendpoints.crd.projectcalico.org
+spec:
+  group: crd.projectcalico.org
+  names:
+    kind: HostEndpoint
+    listKind: HostEndpointList
+    plural: hostendpoints
+    singular: hostendpoint
+  scope: Cluster
+  versions:
+  - name: v1
+    schema:
+      openAPIV3Schema:
+        properties:
+          apiVersion:
+            type: string
+          kind:
+            type: string
+          metadata:
+            type: object
+          spec:
+            properties:
+              expectedIPs:
+                items:
+                  type: string
+                type: array
+              interfaceName:
+                type: string
+              node:
+                type: string
+              ports:
+                items:
+                  properties:
+                    name:
+                      type: string
+                    port:
+                      type: integer
+                    protocol:
+                      anyOf:
+                      - type: integer
+                      - type: string
+                      pattern: ^.*
+                      x-kubernetes-int-or-string: true
+                  required:
+                  - name
+                  - port
+                  - protocol
+                  type: object
+                type: array
+              profiles:
+                items:
+                  type: string
+                type: array
+            type: object
+        type: object
+    served: true
+    storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
+
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: ipamblocks.crd.projectcalico.org
+spec:
+  group: crd.projectcalico.org
+  names:
+    kind: IPAMBlock
+    listKind: IPAMBlockList
+    plural: ipamblocks
+    singular: ipamblock
+  scope: Cluster
+  versions:
+  - name: v1
+    schema:
+      openAPIV3Schema:
+        properties:
+          apiVersion:
+            type: string
+          kind:
+            type: string
+          metadata:
+            type: object
+          spec:
+            properties:
+              affinity:
+                type: string
+              allocations:
+                items:
+                  type: integer
+                  nullable: true
+                type: array
+              attributes:
+                items:
+                  properties:
+                    handle_id:
+                      type: string
+                    secondary:
+                      additionalProperties:
+                        type: string
+                      type: object
+                  type: object
+                type: array
+              cidr:
+                type: string
+              deleted:
+                type: boolean
+              strictAffinity:
+                type: boolean
+              unallocated:
+                items:
+                  type: integer
+                type: array
+            required:
+            - allocations
+            - attributes
+            - cidr
+            - deleted
+            - strictAffinity
+            - unallocated
+            type: object
+        type: object
+    served: true
+    storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
+
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: ipamconfigs.crd.projectcalico.org
+spec:
+  group: crd.projectcalico.org
+  names:
+    kind: IPAMConfig
+    listKind: IPAMConfigList
+    plural: ipamconfigs
+    singular: ipamconfig
+  scope: Cluster
+  versions:
+  - name: v1
+    schema:
+      openAPIV3Schema:
+        properties:
+          apiVersion:
+            type: string
+          kind:
+            type: string
+          metadata:
+            type: object
+          spec:
+            properties:
+              autoAllocateBlocks:
+                type: boolean
+              strictAffinity:
+                type: boolean
+            required:
+            - autoAllocateBlocks
+            - strictAffinity
+            type: object
+        type: object
+    served: true
+    storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
+
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: ipamhandles.crd.projectcalico.org
+spec:
+  group: crd.projectcalico.org
+  names:
+    kind: IPAMHandle
+    listKind: IPAMHandleList
+    plural: ipamhandles
+    singular: ipamhandle
+  scope: Cluster
+  versions:
+  - name: v1
+    schema:
+      openAPIV3Schema:
+        properties:
+          apiVersion:
+            type: string
+          kind:
+            type: string
+          metadata:
+            type: object
+          spec:
+            properties:
+              block:
+                additionalProperties:
+                  type: integer
+                type: object
+              handleID:
+                type: string
+            required:
+            - block
+            - handleID
+            type: object
+        type: object
+    served: true
+    storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
+
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: ippools.crd.projectcalico.org
+spec:
+  group: crd.projectcalico.org
+  names:
+    kind: IPPool
+    listKind: IPPoolList
+    plural: ippools
+    singular: ippool
+  scope: Cluster
+  versions:
+  - name: v1
+    schema:
+      openAPIV3Schema:
+        properties:
+          apiVersion:
+            type: string
+          kind:
+            type: string
+          metadata:
+            type: object
+          spec:
+            properties:
+              blockSize:
+                type: integer
+              cidr:
+                type: string
+              disabled:
+                type: boolean
+              ipip:
+                properties:
+                  enabled:
+                    type: boolean
+                  mode:
+                    type: string
+                type: object
+              ipipMode:
+                type: string
+              nat-outgoing:
+                type: boolean
+              natOutgoing:
+                type: boolean
+              nodeSelector:
+                type: string
+              vxlanMode:
+                type: string
+            required:
+            - cidr
+            type: object
+        type: object
+    served: true
+    storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
+
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: kubecontrollersconfigurations.crd.projectcalico.org
+spec:
+  group: crd.projectcalico.org
+  names:
+    kind: KubeControllersConfiguration
+    listKind: KubeControllersConfigurationList
+    plural: kubecontrollersconfigurations
+    singular: kubecontrollersconfiguration
+  scope: Cluster
+  versions:
+  - name: v1
+    schema:
+      openAPIV3Schema:
+        properties:
+          apiVersion:
+            type: string
+          kind:
+            type: string
+          metadata:
+            type: object
+          spec:
+            properties:
+              controllers:
+                properties:
+                  namespace:
+                    properties:
+                      reconcilerPeriod:
+                        type: string
+                    type: object
+                  node:
+                    properties:
+                      hostEndpoint:
+                        properties:
+                          autoCreate:
+                            type: string
+                        type: object
+                      reconcilerPeriod:
+                        type: string
+                      syncLabels:
+                        type: string
+                    type: object
+                  policy:
+                    properties:
+                      reconcilerPeriod:
+                        type: string
+                    type: object
+                  serviceAccount:
+                    properties:
+                      reconcilerPeriod:
+                        type: string
+                    type: object
+                  workloadEndpoint:
+                    properties:
+                      reconcilerPeriod:
+                        type: string
+                    type: object
+                type: object
+              etcdV3CompactionPeriod:
+                type: string
+              healthChecks:
+                type: string
+              logSeverityScreen:
+                type: string
+            required:
+            - controllers
+            type: object
+          status:
+            properties:
+              environmentVars:
+                additionalProperties:
+                  type: string
+                type: object
+              runningConfig:
+                properties:
+                  controllers:
+                    properties:
+                      namespace:
+                        properties:
+                          reconcilerPeriod:
+                            type: string
+                        type: object
+                      node:
+                        properties:
+                          hostEndpoint:
+                            properties:
+                              autoCreate:
+                                type: string
+                            type: object
+                          reconcilerPeriod:
+                            type: string
+                          syncLabels:
+                            type: string
+                        type: object
+                      policy:
+                        properties:
+                          reconcilerPeriod:
+                            type: string
+                        type: object
+                      serviceAccount:
+                        properties:
+                          reconcilerPeriod:
+                            type: string
+                        type: object
+                      workloadEndpoint:
+                        properties:
+                          reconcilerPeriod:
+                            type: string
+                        type: object
+                    type: object
+                  etcdV3CompactionPeriod:
+                    type: string
+                  healthChecks:
+                    type: string
+                  logSeverityScreen:
+                    type: string
+                required:
+                - controllers
+                type: object
+            type: object
+        type: object
+    served: true
+    storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
+
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: networkpolicies.crd.projectcalico.org
+spec:
+  group: crd.projectcalico.org
+  names:
+    kind: NetworkPolicy
+    listKind: NetworkPolicyList
+    plural: networkpolicies
+    singular: networkpolicy
+  scope: Namespaced
+  versions:
+  - name: v1
+    schema:
+      openAPIV3Schema:
+        properties:
+          apiVersion:
+            type: string
+          kind:
+            type: string
+          metadata:
+            type: object
+          spec:
+            properties:
+              egress:
+                items:
+                  properties:
+                    action:
+                      type: string
+                    destination:
+                      properties:
+                        namespaceSelector:
+                          type: string
+                        nets:
+                          items:
+                            type: string
+                          type: array
+                        notNets:
+                          items:
+                            type: string
+                          type: array
+                        notPorts:
+                          items:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            pattern: ^.*
+                            x-kubernetes-int-or-string: true
+                          type: array
+                        notSelector:
+                          type: string
+                        ports:
+                          items:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            pattern: ^.*
+                            x-kubernetes-int-or-string: true
+                          type: array
+                        selector:
+                          type: string
+                        serviceAccounts:
+                          properties:
+                            names:
+                              items:
+                                type: string
+                              type: array
+                            selector:
+                              type: string
+                          type: object
+                      type: object
+                    http:
+                      properties:
+                        methods:
+                          items:
+                            type: string
+                          type: array
+                        paths:
+                          items:
+                            properties:
+                              exact:
+                                type: string
+                              prefix:
+                                type: string
+                            type: object
+                          type: array
+                      type: object
+                    icmp:
+                      properties:
+                        code:
+                          type: integer
+                        type:
+                          type: integer
+                      type: object
+                    ipVersion:
+                      type: integer
+                    metadata:
+                      properties:
+                        annotations:
+                          additionalProperties:
+                            type: string
+                          type: object
+                      type: object
+                    notICMP:
+                      properties:
+                        code:
+                          type: integer
+                        type:
+                          type: integer
+                      type: object
+                    notProtocol:
+                      anyOf:
+                      - type: integer
+                      - type: string
+                      pattern: ^.*
+                      x-kubernetes-int-or-string: true
+                    protocol:
+                      anyOf:
+                      - type: integer
+                      - type: string
+                      pattern: ^.*
+                      x-kubernetes-int-or-string: true
+                    source:
+                      properties:
+                        namespaceSelector:
+                          type: string
+                        nets:
+                          items:
+                            type: string
+                          type: array
+                        notNets:
+                          items:
+                            type: string
+                          type: array
+                        notPorts:
+                          items:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            pattern: ^.*
+                            x-kubernetes-int-or-string: true
+                          type: array
+                        notSelector:
+                          type: string
+                        ports:
+                          items:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            pattern: ^.*
+                            x-kubernetes-int-or-string: true
+                          type: array
+                        selector:
+                          type: string
+                        serviceAccounts:
+                          properties:
+                            names:
+                              items:
+                                type: string
+                              type: array
+                            selector:
+                              type: string
+                          type: object
+                      type: object
+                  required:
+                  - action
+                  type: object
+                type: array
+              ingress:
+                items:
+                  properties:
+                    action:
+                      type: string
+                    destination:
+                      properties:
+                        namespaceSelector:
+                          type: string
+                        nets:
+                          items:
+                            type: string
+                          type: array
+                        notNets:
+                          items:
+                            type: string
+                          type: array
+                        notPorts:
+                          items:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            pattern: ^.*
+                            x-kubernetes-int-or-string: true
+                          type: array
+                        notSelector:
+                          type: string
+                        ports:
+                          items:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            pattern: ^.*
+                            x-kubernetes-int-or-string: true
+                          type: array
+                        selector:
+                          type: string
+                        serviceAccounts:
+                          properties:
+                            names:
+                              items:
+                                type: string
+                              type: array
+                            selector:
+                              type: string
+                          type: object
+                      type: object
+                    http:
+                      properties:
+                        methods:
+                          items:
+                            type: string
+                          type: array
+                        paths:
+                          items:
+                            properties:
+                              exact:
+                                type: string
+                              prefix:
+                                type: string
+                            type: object
+                          type: array
+                      type: object
+                    icmp:
+                      properties:
+                        code:
+                          type: integer
+                        type:
+                          type: integer
+                      type: object
+                    ipVersion:
+                      type: integer
+                    metadata:
+                      properties:
+                        annotations:
+                          additionalProperties:
+                            type: string
+                          type: object
+                      type: object
+                    notICMP:
+                      properties:
+                        code:
+                          type: integer
+                        type:
+                          type: integer
+                      type: object
+                    notProtocol:
+                      anyOf:
+                      - type: integer
+                      - type: string
+                      pattern: ^.*
+                      x-kubernetes-int-or-string: true
+                    protocol:
+                      anyOf:
+                      - type: integer
+                      - type: string
+                      pattern: ^.*
+                      x-kubernetes-int-or-string: true
+                    source:
+                      properties:
+                        namespaceSelector:
+                          type: string
+                        nets:
+                          items:
+                            type: string
+                          type: array
+                        notNets:
+                          items:
+                            type: string
+                          type: array
+                        notPorts:
+                          items:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            pattern: ^.*
+                            x-kubernetes-int-or-string: true
+                          type: array
+                        notSelector:
+                          type: string
+                        ports:
+                          items:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            pattern: ^.*
+                            x-kubernetes-int-or-string: true
+                          type: array
+                        selector:
+                          type: string
+                        serviceAccounts:
+                          properties:
+                            names:
+                              items:
+                                type: string
+                              type: array
+                            selector:
+                              type: string
+                          type: object
+                      type: object
+                  required:
+                  - action
+                  type: object
+                type: array
+              order:
+                type: number
+              selector:
+                type: string
+              serviceAccountSelector:
+                type: string
+              types:
+                items:
+                  type: string
+                type: array
+            type: object
+        type: object
+    served: true
+    storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
+
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: networksets.crd.projectcalico.org
+spec:
+  group: crd.projectcalico.org
+  names:
+    kind: NetworkSet
+    listKind: NetworkSetList
+    plural: networksets
+    singular: networkset
+  scope: Namespaced
+  versions:
+  - name: v1
+    schema:
+      openAPIV3Schema:
+        properties:
+          apiVersion:
+            type: string
+          kind:
+            type: string
+          metadata:
+            type: object
+          spec:
+            properties:
+              nets:
+                items:
+                  type: string
+                type: array
+            type: object
+        type: object
+    served: true
+    storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
+  
+---
+apiVersion: apps/v1
 kind: DaemonSet
-apiVersion: extensions/v1beta1
 metadata:
   name: calico-node
   namespace: kube-system
@@ -172,83 +1701,127 @@ spec:
     metadata:
       labels:
         k8s-app: calico-node
-      annotations:
-        # This, along with the CriticalAddonsOnly toleration below,
-        # marks the pod as a critical add-on, ensuring it gets
-        # priority scheduling and that its resources are reserved
-        # if it ever gets evicted.
-        scheduler.alpha.kubernetes.io/critical-pod: ''
     spec:
+      nodeSelector:
+        kubernetes.io/os: linux
       hostNetwork: true
       tolerations:
-        # Make sure calico/node gets scheduled on all nodes.
         - effect: NoSchedule
           operator: Exists
-        # Mark the pod as a critical add-on for rescheduling.
         - key: CriticalAddonsOnly
           operator: Exists
         - effect: NoExecute
           operator: Exists
       serviceAccountName: calico-node
-      # Minimize downtime during a rolling upgrade or deletion; tell Kubernetes to do a "force
-      # deletion": https://kubernetes.io/docs/concepts/workloads/pods/pod/#termination-of-pods.
       terminationGracePeriodSeconds: 0
-      containers:
-        # Runs calico/node container on each Kubernetes node.  This
-        # container programs network policy and routes on each
-        # host.
-        - name: calico-node
-          image: quay.io/calico/node:v3.1.3
+      priorityClassName: system-node-critical
+      initContainers:
+        - name: upgrade-ipam
+          image: calico/cni:{{ CALICO_VER }}
+          command: ["/opt/cni/bin/calico-ipam", "-upgrade"]
           env:
-            # Use Kubernetes API as the backing datastore.
-            - name: DATASTORE_TYPE
-              value: "kubernetes"
-            # Enable felix info logging.
-            - name: FELIX_LOGSEVERITYSCREEN
-              value: "info"
-            # Cluster type to identify the deployment type
-            - name: CLUSTER_TYPE
-              value: "k8s,bgp"
-            # Disable file logging so `kubectl logs` works.
-            - name: CALICO_DISABLE_FILE_LOGGING
-              value: "true"
-            # Set Felix endpoint to host default action to ACCEPT.
-            - name: FELIX_DEFAULTENDPOINTTOHOSTACTION
-              value: "ACCEPT"
-            # Disable IPV6 on Kubernetes.
-            - name: FELIX_IPV6SUPPORT
-              value: "false"
-            # Set MTU for tunnel device used if ipip is enabled
-            - name: FELIX_IPINIPMTU
-              value: "1440"
-            # Wait for the datastore.
-            - name: WAIT_FOR_DATASTORE
-              value: "true"
-            # The default IPv4 pool to create on startup if none exists. Pod IPs will be
-            # chosen from this range. Changing this value after installation will have
-            # no effect. This should fall within `--cluster-cidr`.
-            - name: CALICO_IPV4POOL_CIDR
-              value: "{{ POD_CIDR }}"
-            # Enable IPIP
-            - name: CALICO_IPV4POOL_IPIP
-              value: "Always"
-            # Enable IP-in-IP within Felix.
-            - name: FELIX_IPINIPENABLED
-              value: "true"
-            # Typha support: controlled by the ConfigMap.
-            - name: FELIX_TYPHAK8SSERVICENAME
+            - name: KUBERNETES_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: CALICO_NETWORKING_BACKEND
               valueFrom:
                 configMapKeyRef:
                   name: calico-config
-                  key: typha_service_name
-            # Set based on the k8s node name.
+                  key: calico_backend
+          volumeMounts:
+            - mountPath: /var/lib/cni/networks
+              name: host-local-net-dir
+            - mountPath: /host/opt/cni/bin
+              name: cni-bin-dir
+          securityContext:
+            privileged: true
+        - name: install-cni
+          image: calico/cni:{{ CALICO_VER }}
+          command: ["/install-cni.sh"]
+          env:
+            - name: CNI_CONF_NAME
+              value: "10-calico.conflist"
+            - name: CNI_NETWORK_CONFIG
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-config
+                  key: cni_network_config
+            - name: KUBERNETES_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: CNI_MTU
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-config
+                  key: veth_mtu
+            - name: SLEEP
+              value: "false"
+          volumeMounts:
+            - mountPath: /host/opt/cni/bin
+              name: cni-bin-dir
+            - mountPath: /host/etc/cni/net.d
+              name: cni-net-dir
+          securityContext:
+            privileged: true
+        - name: flexvol-driver
+          image: calico/pod2daemon-flexvol:{{ CALICO_VER }}
+          volumeMounts:
+          - name: flexvol-driver-host
+            mountPath: /host/driver
+          securityContext:
+            privileged: true
+      containers:
+        - name: calico-node
+          image: calico/node:{{ CALICO_VER }}
+          env:
+            - name: DATASTORE_TYPE
+              value: "kubernetes"
+            - name: WAIT_FOR_DATASTORE
+              value: "true"
             - name: NODENAME
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
-            # Auto-detect the BGP IP address.
+            - name: CALICO_NETWORKING_BACKEND
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-config
+                  key: calico_backend
+            - name: CLUSTER_TYPE
+              value: "k8s,bgp"
             - name: IP
               value: "autodetect"
+            - name: CALICO_IPV4POOL_IPIP
+              value: "Always"
+            - name: CALICO_IPV4POOL_VXLAN
+              value: "Never"
+            - name: FELIX_IPINIPMTU
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-config
+                  key: veth_mtu
+            - name: FELIX_VXLANMTU
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-config
+                  key: veth_mtu
+            - name: FELIX_WIREGUARDMTU
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-config
+                  key: veth_mtu
+            - name: CALICO_IPV4POOL_CIDR
+              value: "{{ POD_CIDR }}"                #与前面定义的pod的CIDR保持一致
+            - name: CALICO_DISABLE_FILE_LOGGING
+              value: "true"
+            - name: FELIX_DEFAULTENDPOINTTOHOSTACTION
+              value: "ACCEPT"
+            - name: FELIX_IPV6SUPPORT
+              value: "false"
+            - name: FELIX_LOGSEVERITYSCREEN
+              value: "info"
             - name: FELIX_HEALTHENABLED
               value: "true"
           securityContext:
@@ -257,54 +1830,37 @@ spec:
             requests:
               cpu: 250m
           livenessProbe:
-            httpGet:
-              path: /liveness
-              port: 9099
+            exec:
+              command:
+              - /bin/calico-node
+              - -felix-live
+              - -bird-live
             periodSeconds: 10
             initialDelaySeconds: 10
             failureThreshold: 6
           readinessProbe:
-            httpGet:
-              path: /readiness
-              port: 9099
+            exec:
+              command:
+              - /bin/calico-node
+              - -felix-ready
+              - -bird-ready
             periodSeconds: 10
           volumeMounts:
             - mountPath: /lib/modules
               name: lib-modules
               readOnly: true
+            - mountPath: /run/xtables.lock
+              name: xtables-lock
+              readOnly: false
             - mountPath: /var/run/calico
               name: var-run-calico
               readOnly: false
             - mountPath: /var/lib/calico
               name: var-lib-calico
               readOnly: false
-        # This container installs the Calico CNI binaries
-        # and CNI network config file on each node.
-        - name: install-cni
-          image: quay.io/calico/cni:v3.1.3
-          command: ["/install-cni.sh"]
-          env:
-            # Name of the CNI config file to create.
-            - name: CNI_CONF_NAME
-              value: "10-calico.conflist"
-            # The CNI network config to install on each node.
-            - name: CNI_NETWORK_CONFIG
-              valueFrom:
-                configMapKeyRef:
-                  name: calico-config
-                  key: cni_network_config
-            # Set the hostname based on the k8s node name.
-            - name: KUBERNETES_NODE_NAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: spec.nodeName
-          volumeMounts:
-            - mountPath: /host/opt/cni/bin
-              name: cni-bin-dir
-            - mountPath: /host/etc/cni/net.d
-              name: cni-net-dir
+            - name: policysync
+              mountPath: /var/run/nodeagent
       volumes:
-        # Used by calico/node.
         - name: lib-modules
           hostPath:
             path: /lib/modules
@@ -314,155 +1870,69 @@ spec:
         - name: var-lib-calico
           hostPath:
             path: /var/lib/calico
-        # Used to install CNI.
+        - name: xtables-lock
+          hostPath:
+            path: /run/xtables.lock
+            type: FileOrCreate
         - name: cni-bin-dir
           hostPath:
             path: /opt/cni/bin
         - name: cni-net-dir
           hostPath:
             path: /etc/cni/net.d
-
-# Create all the CustomResourceDefinitions needed for
-# Calico policy and networking mode.
+        - name: host-local-net-dir
+          hostPath:
+            path: /var/lib/cni/networks
+        - name: policysync
+          hostPath:
+            type: DirectoryOrCreate
+            path: /var/run/nodeagent
+        - name: flexvol-driver-host
+          hostPath:
+            type: DirectoryOrCreate
+            path: /usr/libexec/kubernetes/kubelet-plugins/volume/exec/nodeagent~uds
+            
 ---
-
-apiVersion: apiextensions.k8s.io/v1beta1
-kind: CustomResourceDefinition
+apiVersion: apps/v1
+kind: Deployment
 metadata:
-   name: felixconfigurations.crd.projectcalico.org
-spec:
-  scope: Cluster
-  group: crd.projectcalico.org
-  version: v1
-  names:
-    kind: FelixConfiguration
-    plural: felixconfigurations
-    singular: felixconfiguration
-
----
-
-apiVersion: apiextensions.k8s.io/v1beta1
-kind: CustomResourceDefinition
-metadata:
-  name: bgppeers.crd.projectcalico.org
-spec:
-  scope: Cluster
-  group: crd.projectcalico.org
-  version: v1
-  names:
-    kind: BGPPeer
-    plural: bgppeers
-    singular: bgppeer
-
----
-
-apiVersion: apiextensions.k8s.io/v1beta1
-kind: CustomResourceDefinition
-metadata:
-  name: bgpconfigurations.crd.projectcalico.org
-spec:
-  scope: Cluster
-  group: crd.projectcalico.org
-  version: v1
-  names:
-    kind: BGPConfiguration
-    plural: bgpconfigurations
-    singular: bgpconfiguration
-
----
-
-apiVersion: apiextensions.k8s.io/v1beta1
-kind: CustomResourceDefinition
-metadata:
-  name: ippools.crd.projectcalico.org
-spec:
-  scope: Cluster
-  group: crd.projectcalico.org
-  version: v1
-  names:
-    kind: IPPool
-    plural: ippools
-    singular: ippool
-
----
-
-apiVersion: apiextensions.k8s.io/v1beta1
-kind: CustomResourceDefinition
-metadata:
-  name: hostendpoints.crd.projectcalico.org
-spec:
-  scope: Cluster
-  group: crd.projectcalico.org
-  version: v1
-  names:
-    kind: HostEndpoint
-    plural: hostendpoints
-    singular: hostendpoint
-
----
-
-apiVersion: apiextensions.k8s.io/v1beta1
-kind: CustomResourceDefinition
-metadata:
-  name: clusterinformations.crd.projectcalico.org
-spec:
-  scope: Cluster
-  group: crd.projectcalico.org
-  version: v1
-  names:
-    kind: ClusterInformation
-    plural: clusterinformations
-    singular: clusterinformation
-
----
-
-apiVersion: apiextensions.k8s.io/v1beta1
-kind: CustomResourceDefinition
-metadata:
-  name: globalnetworkpolicies.crd.projectcalico.org
-spec:
-  scope: Cluster
-  group: crd.projectcalico.org
-  version: v1
-  names:
-    kind: GlobalNetworkPolicy
-    plural: globalnetworkpolicies
-    singular: globalnetworkpolicy
-
----
-
-apiVersion: apiextensions.k8s.io/v1beta1
-kind: CustomResourceDefinition
-metadata:
-  name: globalnetworksets.crd.projectcalico.org
-spec:
-  scope: Cluster
-  group: crd.projectcalico.org
-  version: v1
-  names:
-    kind: GlobalNetworkSet
-    plural: globalnetworksets
-    singular: globalnetworkset
-
----
-
-apiVersion: apiextensions.k8s.io/v1beta1
-kind: CustomResourceDefinition
-metadata:
-  name: networkpolicies.crd.projectcalico.org
-spec:
-  scope: Namespaced
-  group: crd.projectcalico.org
-  version: v1
-  names:
-    kind: NetworkPolicy
-    plural: networkpolicies
-    singular: networkpolicy
-
----
-
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: calico-node
+  name: calico-kube-controllers
   namespace: kube-system
+  labels:
+    k8s-app: calico-kube-controllers
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      k8s-app: calico-kube-controllers
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      name: calico-kube-controllers
+      namespace: kube-system
+      labels:
+        k8s-app: calico-kube-controllers
+    spec:
+      nodeSelector:
+        kubernetes.io/os: linux
+      tolerations:
+        - key: CriticalAddonsOnly
+          operator: Exists
+        - key: node-role.kubernetes.io/master
+          effect: NoSchedule
+      serviceAccountName: calico-kube-controllers
+      priorityClassName: system-cluster-critical
+      containers:
+        - name: calico-kube-controllers
+          image: calico/kube-controllers:{{ CALICO_VER }}
+          env:
+            - name: ENABLED_CONTROLLERS
+              value: node
+            - name: DATASTORE_TYPE
+              value: kubernetes
+          readinessProbe:
+            exec:
+              command:
+              - /usr/bin/check-status
+              - -r

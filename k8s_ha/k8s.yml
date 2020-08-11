@@ -2,23 +2,34 @@
 - hosts: all
   remote_user: root
   gather_facts: True
+
   roles:
     - docker_install
 
 - hosts: master
   remote_user: root
   gather_facts: True
-  roles:
-    - master_install
 
-- hosts: node
+  roles:
+    - init_install
+
+- hosts: add_master
   remote_user: root
   gather_facts: True
+
+  roles:
+    - master_install
+    
+- hosts: add_node
+  remote_user: root
+  gather_facts: True
+
   roles:
     - node_install
-  
+    
 - hosts: master
   remote_user: root
   gather_facts: True
+
   roles:
     - addons_install

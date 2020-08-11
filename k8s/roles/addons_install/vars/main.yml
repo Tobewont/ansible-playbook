@@ -1,6 +1,5 @@
-#定义k8s集群插件安装中的变量
-
-#Pod网段
-POD_CIDR: 172.10.0.0/16
-
 SOURCE_DIR: /software
+POD_CIDR: 172.10.0.0/16
+CALICO_VER: v3.15.1
+BACKEND_VER: 1.5
+INGRESS_VER: 0.19.0

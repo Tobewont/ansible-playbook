@@ -1,0 +1,16 @@
+- name: 拷贝ingress-nginx.yaml
+  template: src=ingress-nginx.yaml dest=/etc/kubernetes/addons
+
+#- name: 拉取defaultbackend-amd64镜像
+#  shell: "ansible node -m docker_image -a 'name=huqian123/nginx-ingress-default-backend tag={{ BACKEND_VER }} source=pull timeout=3600'"
+
+#- name: tag defaultbackend-amd64镜像
+#  shell: "ansible node -m shell -a 'docker tag huqian123/nginx-ingress-default-backend:{{ BACKEND_VER }} k8s.gcr.io/defaultbackend-amd64:{{ BACKEND_VER }}'"
+#  args:
+#    warn: False
+    
+- name: 拉取nginx-ingress-controller镜像
+  shell: "ansible node -m docker_image -a 'name=quay.io/kubernetes-ingress-controller/nginx-ingress-controller tag={{ INGRESS_VER }} source=pull timeout=3600'"
+
+- name: 部署ingress-nginx
+  shell: "kubectl apply -f /etc/kubernetes/addons/ingress-nginx.yaml"

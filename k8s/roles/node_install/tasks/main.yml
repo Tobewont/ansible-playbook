@@ -1,2 +1,1 @@
-#引用install模块
 - include: install.yml

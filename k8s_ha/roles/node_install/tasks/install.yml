@@ -9,6 +9,9 @@
   
 - name: 集群增加node
   script: "{{ SOURCE_DIR }}/node.sh"
-  
+
+- name: 删除master的token
+  file: name={{ SOURCE_DIR }}/master.sh state=absent
+
 - name: 删除node的token
   file: name={{ SOURCE_DIR }}/node.sh state=absent

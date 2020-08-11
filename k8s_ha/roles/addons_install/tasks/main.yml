@@ -1,0 +1,3 @@
+#引用calico、dashboard模块
+- include: calico.yml
+- include: dashboard.yml

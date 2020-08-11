@@ -1,0 +1,11 @@
+﻿#定义新增master到集群中的变量
+
+#注意与keepalived master一致
+#master虚拟ip（建议为同网段地址）
+MASTER_VIP: 192.168.30.188
+#keepalived用到的网卡接口名
+VIP_IF: ens33
+
+SOURCE_DIR: /software
+Cluster_Num: "{{ groups['all'] | length }}"
+Virtual_Router_ID: 68

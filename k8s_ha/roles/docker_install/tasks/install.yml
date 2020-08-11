@@ -39,7 +39,7 @@
     
 - name: 配置kubernetes源
   template: src=kubernetes.repo dest=/etc/yum.repos.d/kubernetes.repo
-
+ 
 - name: 安装kubernetes-cni
   yum: 
     name: kubernetes-cni
@@ -55,9 +55,3 @@
     name: kubelet
     state: started
     enabled: yes
- 
-- name: 拷贝脚本
-  template: src=install.sh dest={{ SOURCE_DIR }} mode=0755
-  
-- name: 安装docker-py
-  script: "{{ SOURCE_DIR }}/install.sh"
