@@ -1,2 +1,2 @@
-# ansible-playbook
-批量安装常用软件
+## ansible-playbook
+install common software in batches.
