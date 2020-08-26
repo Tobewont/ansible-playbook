@@ -1,2 +1,2 @@
 ## ansible-playbook
-deploy common software in batches.
+Use ansible-playbook to install common software in batches.
